@@ -1,0 +1,35 @@
+{
+  "name": "sidescroll-net",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoritative server and client prediction for a 2D side-scrolling multiplayer game, with one-way platforms and slopes.",
+  "license": "MIT",
+  "author": "冷牛",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && esbuild src/client/main.ts --bundle --format=esm --target=es2022 --sourcemap --outfile=public/client.js",
+    "start": "node dist/server/main.js",
+    "dev": "npm run build && npm start",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "ws": "^8.22.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^9.39.5",
+    "prettier": "^3.9.10",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^4.1.12"
+  }
+}
