@@ -73,6 +73,16 @@ test         physics and netcode tests
 
 `Game` does not touch sockets and can be stepped tick by tick in tests. Swapping in UDP or another transport only touches `src/server/main.ts`.
 
+## Load testing
+
+```sh
+npm run build
+npm start
+npm run bots -- -n 200 -t 30   # in another terminal
+```
+
+The server prints player count, tick time and bandwidth every 10 seconds. With 200 bots on one map a tick takes about 2 ms on average, but every snapshot carries every player, so bandwidth grows with n² and sits around 12 MiB/s.
+
 ## Development
 
 ```sh

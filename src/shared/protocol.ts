@@ -85,6 +85,11 @@ export function encode(msg: Message): Uint8Array {
   }
 }
 
+/** Rewrites the ack of an encoded snapshot in place. */
+export function setSnapshotAck(bytes: Uint8Array, ackSeq: number): void {
+  new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).setUint32(5, ackSeq, true);
+}
+
 export class DecodeError extends Error {}
 
 export function decode(bytes: Uint8Array): Message {

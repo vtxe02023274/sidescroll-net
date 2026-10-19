@@ -17,7 +17,8 @@
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "tiled2map": "node dist/tools/tiled-cli.js"
+    "tiled2map": "node dist/tools/tiled-cli.js",
+    "bots": "node dist/tools/bots.js"
   },
   "dependencies": {
     "ws": "^8.22.0"

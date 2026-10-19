@@ -4,7 +4,14 @@ import { Interpolator, Predictor } from '../src/client/netcode.js';
 import { Game } from '../src/server/game.js';
 import { loadMap, type MapData } from '../src/shared/map.js';
 import { Button, spawnPlayer, step } from '../src/shared/physics.js';
-import { decode, DecodeError, encode, Op, type SnapshotMessage } from '../src/shared/protocol.js';
+import {
+  decode,
+  DecodeError,
+  encode,
+  Op,
+  setSnapshotAck,
+  type SnapshotMessage,
+} from '../src/shared/protocol.js';
 
 const map = loadMap(
   JSON.parse(readFileSync(new URL('../maps/field.json', import.meta.url), 'utf8')) as MapData,
@@ -150,5 +157,16 @@ describe('interpolation', () => {
     interp.push(0, at(0));
     interp.push(100, []);
     expect(interp.ids()).toEqual([]);
+  });
+});
+
+describe('setSnapshotAck', () => {
+  it('only changes the ack', () => {
+    const game = new Game(map);
+    const a = game.addPlayer();
+    game.addPlayer();
+    const bytes = encode(game.snapshotFor(a));
+    setSnapshotAck(bytes, 77);
+    expect(decode(bytes)).toEqual({ ...game.snapshotFor(a), ackSeq: 77 });
   });
 });

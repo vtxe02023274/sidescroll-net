@@ -4,7 +4,7 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { loadMap, type MapData } from '../shared/map.js';
-import { decode, encode, Op, DecodeError } from '../shared/protocol.js';
+import { decode, encode, Op, DecodeError, setSnapshotAck } from '../shared/protocol.js';
 import { Game } from './game.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -71,18 +71,44 @@ wss.on('connection', (ws) => {
 // Fixed timestep driven by wall clock, so a slow tick is made up for instead of drifting.
 const tickMs = 1000 / game.tickRate;
 let next = performance.now();
+const stats = { ticks: 0, busyMs: 0, worstMs: 0, bytesOut: 0 };
+
+function broadcast() {
+  // Everyone gets the same entity list, only the ack differs. Encode once
+  // and patch the ack per client instead of encoding a snapshot per player.
+  const shared = encode(game.snapshotFor(0));
+  for (const [id, ws] of sockets) {
+    const bytes = shared.slice();
+    setSnapshotAck(bytes, game.ackSeq(id));
+    ws.send(bytes);
+    stats.bytesOut += bytes.byteLength;
+  }
+}
+
 function loop() {
   const now = performance.now();
   while (now >= next) {
+    const start = performance.now();
     game.update();
-    if (game.tick % SNAPSHOT_EVERY === 0) {
-      for (const [id, ws] of sockets) ws.send(encode(game.snapshotFor(id)));
-    }
+    if (game.tick % SNAPSHOT_EVERY === 0) broadcast();
+    const took = performance.now() - start;
+    stats.ticks++;
+    stats.busyMs += took;
+    stats.worstMs = Math.max(stats.worstMs, took);
     next += tickMs;
   }
   setTimeout(loop, Math.max(0, next - performance.now()));
 }
 loop();
+
+setInterval(() => {
+  if (!stats.ticks) return;
+  console.log(
+    `players ${game.playerCount}  tick avg ${(stats.busyMs / stats.ticks).toFixed(2)} ms ` +
+      `max ${stats.worstMs.toFixed(2)} ms  out ${(stats.bytesOut / 10 / 1024).toFixed(1)} KiB/s`,
+  );
+  Object.assign(stats, { ticks: 0, busyMs: 0, worstMs: 0, bytesOut: 0 });
+}, 10_000).unref();
 
 http.listen(PORT, () => {
   console.log(`listening on http://localhost:${PORT}`);

@@ -73,6 +73,16 @@ test         物理與網路同步測試
 
 `Game` 不碰 socket，可以在測試裡一個 tick 一個 tick 推進；想換成 UDP 或別的傳輸層只要改 `src/server/main.ts`。
 
+## 壓力測試
+
+```sh
+npm run build
+npm start
+npm run bots -- -n 200 -t 30   # 另一個終端機
+```
+
+伺服器每 10 秒印一次人數、tick 耗時和流量。200 個機器人擠在同一張地圖時，tick 平均約 2 ms，但每個快照都帶全部玩家，流量是 O(n²)，約 12 MiB/s。
+
 ## 開發
 
 ```sh

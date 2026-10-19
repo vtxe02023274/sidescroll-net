@@ -80,8 +80,12 @@ export class Game {
     }
   }
 
+  ackSeq(id: number): number {
+    return this.players.get(id)?.ackSeq ?? 0;
+  }
+
   snapshotFor(id: number): SnapshotMessage {
     const entities = [...this.players.values()].map((p) => ({ id: p.id, state: p.state }));
-    return { op: 3, tick: this.tick, ackSeq: this.players.get(id)?.ackSeq ?? 0, entities };
+    return { op: 3, tick: this.tick, ackSeq: this.ackSeq(id), entities };
   }
 }
