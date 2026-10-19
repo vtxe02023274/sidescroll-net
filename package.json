@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "tiled2map": "node dist/tools/tiled-cli.js"
   },
   "dependencies": {
     "ws": "^8.22.0"

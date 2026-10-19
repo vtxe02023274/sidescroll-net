@@ -48,12 +48,25 @@ Open http://localhost:8080 and a second tab to see another player. The controls 
 
 The wire format is documented at the top of `src/shared/protocol.ts`.
 
+## Drawing maps in Tiled
+
+Add an object layer called `footholds` and draw platforms with polylines. Each segment becomes a foothold and the segments of one polyline are linked. Add a point named or classed `spawn` for the spawn point. Save as JSON (.tmj) and convert:
+
+```sh
+npm run build
+npm run tiled2map -- my-map.tmj -o maps/my-map.json
+MAP=maps/my-map.json npm start
+```
+
+Vertical segments are skipped, and polylines can be drawn in either direction. There is an example in `test/fixtures/hills.tmj`.
+
 ## Layout
 
 ```
 src/shared   physics, map and packets (used by both sides)
 src/server   Game state and the WebSocket server
 src/client   prediction, interpolation and rendering
+src/tools    Tiled map converter
 maps         map JSON
 test         physics and netcode tests
 ```

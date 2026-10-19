@@ -13,7 +13,8 @@ const SNAPSHOT_EVERY = 2;
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
 const publicDir = join(root, 'public');
-const mapData = JSON.parse(await readFile(join(root, 'maps', 'field.json'), 'utf8')) as MapData;
+const mapFile = process.env.MAP ?? join(root, 'maps', 'field.json');
+const mapData = JSON.parse(await readFile(mapFile, 'utf8')) as MapData;
 const game = new Game(loadMap(mapData));
 
 const contentTypes: Record<string, string> = {

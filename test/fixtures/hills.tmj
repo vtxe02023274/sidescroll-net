@@ -1,0 +1,51 @@
+{
+  "type": "map",
+  "orientation": "orthogonal",
+  "width": 40,
+  "height": 20,
+  "tilewidth": 32,
+  "tileheight": 32,
+  "layers": [
+    {
+      "type": "objectgroup",
+      "name": "footholds",
+      "objects": [
+        {
+          "id": 1,
+          "name": "",
+          "x": 0,
+          "y": 500,
+          "polyline": [
+            { "x": 0, "y": 0 },
+            { "x": 300, "y": 0 },
+            { "x": 500, "y": -80 },
+            { "x": 500, "y": -200 }
+          ]
+        },
+        {
+          "id": 2,
+          "name": "",
+          "x": 900,
+          "y": 300,
+          "polyline": [
+            { "x": 0, "y": 0 },
+            { "x": -200, "y": 0 }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "name": "markers",
+      "offsetx": 10,
+      "layers": [
+        {
+          "type": "objectgroup",
+          "name": "points",
+          "offsety": 5,
+          "objects": [{ "id": 3, "name": "spawn", "point": true, "x": 100, "y": 400 }]
+        }
+      ]
+    }
+  ]
+}

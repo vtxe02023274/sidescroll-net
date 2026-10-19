@@ -48,12 +48,25 @@ npm run dev
 
 封包格式寫在 `src/shared/protocol.ts` 開頭的註解。
 
+## 用 Tiled 畫地圖
+
+在 Tiled 開一個物件圖層叫 `footholds`，用折線（polyline）畫平台，每一段會變成一個踏板，同一條折線的各段自動相連。放一個名稱或類別叫 `spawn` 的點當出生點。存成 JSON（.tmj）後轉檔：
+
+```sh
+npm run build
+npm run tiled2map -- my-map.tmj -o maps/my-map.json
+MAP=maps/my-map.json npm start
+```
+
+垂直的線段會略過，左畫到右或右畫到左都可以。範例在 `test/fixtures/hills.tmj`。
+
 ## 專案結構
 
 ```
 src/shared   物理、地圖、封包（兩邊共用）
 src/server   Game 狀態與 WebSocket 伺服器
 src/client   預測、內插與畫面
+src/tools    Tiled 地圖轉檔
 maps         地圖 JSON
 test         物理與網路同步測試
 ```
