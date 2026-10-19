@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>sidescroll-net</title>
+    <style>
+      body {
+        margin: 0;
+        background: #11141b;
+        color: #e6e6e6;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        padding: 16px;
+      }
+      canvas {
+        max-width: 100%;
+        border: 1px solid #2c3242;
+      }
+      #hud {
+        font-family: monospace;
+        white-space: pre;
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="view" width="800" height="450"></canvas>
+    <div id="hud">connecting</div>
+    <div class="controls">
+      <label
+        >round trip lag <input id="lag" type="range" min="0" max="600" step="20" value="200" />
+        <span id="lag-value"></span
+      ></label>
+      <label><input id="predict" type="checkbox" checked /> prediction</label>
+      <label><input id="interp" type="checkbox" checked /> interpolation</label>
+    </div>
+    <div>
+      arrows or A/D to move, Space to jump, Down + Space to drop through a platform. Open a second
+      tab to see another player.
+    </div>
+    <script type="module" src="client.js"></script>
+  </body>
+</html>
