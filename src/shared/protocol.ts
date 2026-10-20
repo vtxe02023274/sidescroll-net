@@ -3,11 +3,11 @@ import type { PlayerState } from './physics.js';
 /**
  * Binary messages, little endian. Every message starts with a one byte opcode.
  *
- * c2s Input     u8 op, u32 seq, u8 buttons
+ * c2s Input     u8 op, u32 seq, u8 buttons, u32 viewTick
  * s2c Welcome   u8 op, u16 playerId, u8 tickRate
  * s2c Snapshot  u8 op, u32 tick, u32 ackSeq, u16 count, count * entity
  *   entity      u16 id, f32 x, f32 y, f32 vx, f32 vy, u16 foothold, u8 flags,
- *               u16 dropFoothold, u8 dropTicks
+ *               u16 dropFoothold, u8 dropTicks, u8 attackTicks, u8 hurtTicks
  *   flags       bit 0 facing left, bit 1 jump held
  */
 export const Op = {
@@ -20,6 +20,8 @@ export interface InputMessage {
   op: typeof Op.Input;
   seq: number;
   buttons: number;
+  /** Server tick the client was showing other players at, used to rewind for hit checks. */
+  viewTick: number;
 }
 
 export interface WelcomeMessage {
@@ -43,15 +45,16 @@ export interface SnapshotMessage {
 
 export type Message = InputMessage | WelcomeMessage | SnapshotMessage;
 
-const ENTITY_SIZE = 2 + 4 * 4 + 2 + 1 + 2 + 1;
+const ENTITY_SIZE = 2 + 4 * 4 + 2 + 1 + 2 + 1 + 1 + 1;
 
 export function encode(msg: Message): Uint8Array {
   switch (msg.op) {
     case Op.Input: {
-      const view = new DataView(new ArrayBuffer(6));
+      const view = new DataView(new ArrayBuffer(10));
       view.setUint8(0, msg.op);
       view.setUint32(1, msg.seq, true);
       view.setUint8(5, msg.buttons);
+      view.setUint32(6, msg.viewTick, true);
       return new Uint8Array(view.buffer);
     }
     case Op.Welcome: {
@@ -78,6 +81,8 @@ export function encode(msg: Message): Uint8Array {
         view.setUint8(o + 20, (s.facing < 0 ? 1 : 0) | (s.jumpHeld ? 2 : 0));
         view.setUint16(o + 21, s.dropFoothold, true);
         view.setUint8(o + 23, s.dropTicks);
+        view.setUint8(o + 24, s.attackTicks);
+        view.setUint8(o + 25, s.hurtTicks);
         o += ENTITY_SIZE;
       }
       return new Uint8Array(view.buffer);
@@ -103,8 +108,13 @@ export function decode(bytes: Uint8Array): Message {
   const op = view.getUint8(0);
   switch (op) {
     case Op.Input:
-      need(6);
-      return { op, seq: view.getUint32(1, true), buttons: view.getUint8(5) };
+      need(10);
+      return {
+        op,
+        seq: view.getUint32(1, true),
+        buttons: view.getUint8(5),
+        viewTick: view.getUint32(6, true),
+      };
     case Op.Welcome:
       need(4);
       return { op, playerId: view.getUint16(1, true), tickRate: view.getUint8(3) };
@@ -128,6 +138,8 @@ export function decode(bytes: Uint8Array): Message {
             jumpHeld: (flags & 2) !== 0,
             dropFoothold: view.getUint16(o + 21, true),
             dropTicks: view.getUint8(o + 23),
+            attackTicks: view.getUint8(o + 24),
+            hurtTicks: view.getUint8(o + 25),
           },
         });
         o += ENTITY_SIZE;

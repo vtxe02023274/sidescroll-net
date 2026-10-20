@@ -1,5 +1,5 @@
 import { loadMap, type GameMap, type MapData } from '../shared/map.js';
-import { Button, TICK_RATE, type PlayerState } from '../shared/physics.js';
+import { Button, Physics, TICK_RATE, type PlayerState } from '../shared/physics.js';
 import { decode, encode, Op, type Message } from '../shared/protocol.js';
 import { Interpolator, Predictor } from './netcode.js';
 import { connectWebSocket, startLocalServer } from './transport.js';
@@ -27,6 +27,7 @@ function readButtons(): number {
   if (keys.has('ArrowRight') || keys.has('KeyD')) b |= Button.Right;
   if (keys.has('Space') || keys.has('KeyK') || keys.has('AltLeft')) b |= Button.Jump;
   if (keys.has('ArrowDown') || keys.has('KeyS')) b |= Button.Down;
+  if (keys.has('KeyJ') || keys.has('KeyX') || keys.has('ControlLeft')) b |= Button.Attack;
   return b;
 }
 
@@ -72,6 +73,7 @@ function handle(msg: Message): void {
   interpolator.push(
     performance.now(),
     msg.entities.filter((e) => e.id !== myId),
+    msg.tick,
   );
   const self = msg.entities.find((e) => e.id === myId);
   if (self) {
@@ -81,7 +83,8 @@ function handle(msg: Message): void {
 }
 
 function sendInput(seq: number, buttons: number): void {
-  const bytes = encode({ op: Op.Input, seq, buttons });
+  const viewTick = interpolator.viewTick(performance.now());
+  const bytes = encode({ op: Op.Input, seq, buttons, viewTick });
   delayed(() => transport.send(bytes));
 }
 
@@ -152,7 +155,12 @@ function draw(now: number): void {
 function drawPlayer(s: PlayerState, color: string, label: string): void {
   const w = 24;
   const h = 40;
-  ctx.fillStyle = color;
+  if (s.attackTicks > Physics.attackTicks / 2) {
+    // Same reach the server checks: 70 px in front of the feet, 50 px up.
+    ctx.fillStyle = 'rgba(255, 230, 120, 0.35)';
+    ctx.fillRect(s.facing > 0 ? s.x : s.x - 70, s.y - 50, 70, 50);
+  }
+  ctx.fillStyle = s.hurtTicks > 0 && s.hurtTicks % 4 < 2 ? '#ff5f5f' : color;
   ctx.fillRect(s.x - w / 2, s.y - h, w, h);
   ctx.fillRect(s.x + (s.facing > 0 ? w / 2 : -w / 2 - 4), s.y - h + 8, 4, 6);
   if (label) {

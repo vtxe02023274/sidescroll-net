@@ -8,6 +8,7 @@ export const Button = {
   Right: 2,
   Jump: 4,
   Down: 8,
+  Attack: 16,
 } as const;
 
 export const Physics = {
@@ -19,6 +20,10 @@ export const Physics = {
   maxFall: 670,
   jumpSpeed: 600,
   dropThroughTicks: 8,
+  attackTicks: 10,
+  hurtTicks: 12,
+  knockbackX: 300,
+  knockbackY: 350,
 } as const;
 
 /** Everything the simulation needs to step one player. Plain data so it can be copied and sent. */
@@ -35,6 +40,10 @@ export interface PlayerState {
   dropTicks: number;
   /** Jump needs a fresh press, holding the button does not bounce. */
   jumpHeld: boolean;
+  /** Ticks left in the current swing. A new attack can start at 0. */
+  attackTicks: number;
+  /** Ticks left of knockback, during which input is ignored. */
+  hurtTicks: number;
 }
 
 export function spawnPlayer(map: GameMap): PlayerState {
@@ -48,6 +57,24 @@ export function spawnPlayer(map: GameMap): PlayerState {
     dropFoothold: 0,
     dropTicks: 0,
     jumpHeld: false,
+    attackTicks: 0,
+    hurtTicks: 0,
+  };
+}
+
+/** True on the tick a swing begins, which is when the server checks for hits. */
+export function attackStarted(prev: PlayerState, next: PlayerState): boolean {
+  return prev.attackTicks === 0 && next.attackTicks === Physics.attackTicks;
+}
+
+/** Knocks a player away from the attacker. Only the server calls this. */
+export function applyHit(target: PlayerState, attackerFacing: 1 | -1): PlayerState {
+  return {
+    ...target,
+    vx: Math.fround(attackerFacing * Physics.knockbackX),
+    vy: Math.fround(-Physics.knockbackY),
+    foothold: 0,
+    hurtTicks: Physics.hurtTicks,
   };
 }
 
@@ -67,12 +94,16 @@ function inputDirection(buttons: number): number {
  */
 export function step(map: GameMap, prev: PlayerState, buttons: number): PlayerState {
   const s: PlayerState = { ...prev };
-  const dir = inputDirection(buttons);
-  const jumpPressed = (buttons & Button.Jump) !== 0 && !s.jumpHeld;
+  const stunned = s.hurtTicks > 0;
+  const dir = stunned ? 0 : inputDirection(buttons);
+  const jumpPressed = !stunned && (buttons & Button.Jump) !== 0 && !s.jumpHeld;
   s.jumpHeld = (buttons & Button.Jump) !== 0;
   if (dir !== 0) s.facing = dir > 0 ? 1 : -1;
 
   if (s.dropTicks > 0 && --s.dropTicks === 0) s.dropFoothold = 0;
+  if (s.hurtTicks > 0) s.hurtTicks--;
+  if (s.attackTicks > 0) s.attackTicks--;
+  else if (!stunned && buttons & Button.Attack) s.attackTicks = Physics.attackTicks;
 
   if (s.foothold !== 0) {
     stepGround(map, s, dir, buttons, jumpPressed);

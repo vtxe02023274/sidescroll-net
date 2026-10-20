@@ -11,7 +11,7 @@ Strings are UTF-8; their length prefix counts bytes, not characters.
 
 | Opcode | Packet                | Direction       | Body size |
 | ------ | --------------------- | --------------- | --------- |
-| `0x01` | [Input](#input)       | client → server | 5         |
+| `0x01` | [Input](#input)       | client → server | 9         |
 | `0x02` | [Welcome](#welcome)   | server → client | 3         |
 | `0x03` | [Snapshot](#snapshot) | server → client | 10+       |
 
@@ -21,10 +21,11 @@ Opcode `0x01` · client → server
 
 Buttons for one client tick. Every input moves the player exactly one step.
 
-| Field     | Type | Size (bytes) | Description                                      |
-| --------- | ---- | ------------ | ------------------------------------------------ |
-| `seq`     | u32  | 4            |                                                  |
-| `buttons` | u8   | 1            | Bit 0 left, bit 1 right, bit 2 jump, bit 3 down. |
+| Field       | Type | Size (bytes) | Description                                                                     |
+| ----------- | ---- | ------------ | ------------------------------------------------------------------------------- |
+| `seq`       | u32  | 4            |                                                                                 |
+| `buttons`   | u8   | 1            | Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack.                  |
+| `view_tick` | u32  | 4            | Server tick the client was showing other players at. Used to rewind hit checks. |
 
 ### Welcome
 
@@ -47,7 +48,7 @@ Sent every other tick.
 | ---------- | ------------------------------- | ------------ | ------------------------------------------------------- |
 | `tick`     | u32                             | 4            |                                                         |
 | `ack_seq`  | u32                             | 4            | Last input sequence the server applied for this client. |
-| `entities` | [Entity](#entity)[] (u16 count) | 2 + 24n      |                                                         |
+| `entities` | [Entity](#entity)[] (u16 count) | 2 + 26n      |                                                         |
 
 ## Structs
 
@@ -66,3 +67,5 @@ One player as of the snapshot tick.
 | `flags`         | u8   | 1            | Bit 0 facing left, bit 1 jump held.                            |
 | `drop_foothold` | u16  | 2            | Foothold being dropped through.                                |
 | `drop_ticks`    | u8   | 1            | Ticks left before the dropped foothold can be landed on again. |
+| `attack_ticks`  | u8   | 1            | Ticks left in the current swing.                               |
+| `hurt_ticks`    | u8   | 1            | Ticks left of knockback.                                       |

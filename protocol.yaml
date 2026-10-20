@@ -33,6 +33,12 @@ structs:
       - name: drop_ticks
         type: u8
         doc: Ticks left before the dropped foothold can be landed on again.
+      - name: attack_ticks
+        type: u8
+        doc: Ticks left in the current swing.
+      - name: hurt_ticks
+        type: u8
+        doc: Ticks left of knockback.
 
 packets:
   - name: Input
@@ -44,7 +50,10 @@ packets:
         type: u32
       - name: buttons
         type: u8
-        doc: Bit 0 left, bit 1 right, bit 2 jump, bit 3 down.
+        doc: Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack.
+      - name: view_tick
+        type: u32
+        doc: Server tick the client was showing other players at. Used to rewind hit checks.
 
   - name: Welcome
     opcode: 0x02

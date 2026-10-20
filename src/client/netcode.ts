@@ -56,10 +56,14 @@ interface Sample {
  */
 export class Interpolator {
   private readonly samples = new Map<number, Sample[]>();
+  private readonly ticks: { time: number; tick: number }[] = [];
 
   constructor(public delayMs: number) {}
 
-  push(time: number, entities: EntitySnapshot[]): void {
+  push(time: number, entities: EntitySnapshot[], tick = 0): void {
+    this.ticks.push({ time, tick });
+    while (this.ticks.length > 2 && this.ticks[0]!.time < time - 1000) this.ticks.shift();
+
     const seen = new Set<number>();
     for (const { id, state } of entities) {
       seen.add(id);
@@ -70,6 +74,22 @@ export class Interpolator {
       while (list.length > 2 && list[0]!.time < time - 1000) list.shift();
     }
     for (const id of this.samples.keys()) if (!seen.has(id)) this.samples.delete(id);
+  }
+
+  /**
+   * Server tick that other players are being drawn at. Sent with each input
+   * so the server can rewind to what this client saw when checking hits.
+   */
+  viewTick(now: number): number {
+    const t = now - this.delayMs;
+    let i = this.ticks.length - 1;
+    if (i < 0) return 0;
+    while (i > 0 && this.ticks[i - 1]!.time > t) i--;
+    const b = this.ticks[i]!;
+    const a = this.ticks[i - 1];
+    if (!a || t >= b.time) return b.tick;
+    if (t <= a.time) return a.tick;
+    return Math.floor(a.tick + ((b.tick - a.tick) * (t - a.time)) / (b.time - a.time));
   }
 
   ids(): number[] {

@@ -39,7 +39,7 @@ export function startLocalServer(map: GameMap, bots: number): Transport {
   const t: Transport = {
     send(bytes) {
       const msg = decode(bytes);
-      if (msg.op === Op.Input) game.pushInput(me, msg.seq, msg.buttons);
+      if (msg.op === Op.Input) game.pushInput(me, msg.seq, msg.buttons, msg.viewTick);
     },
     onMessage: () => {},
     onClose: () => {},

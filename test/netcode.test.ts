@@ -1,9 +1,16 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { Interpolator, Predictor } from '../src/client/netcode.js';
-import { Game } from '../src/server/game.js';
+import { Game, MAX_REWIND_TICKS } from '../src/server/game.js';
 import { loadMap, type MapData } from '../src/shared/map.js';
-import { Button, spawnPlayer, step } from '../src/shared/physics.js';
+import {
+  applyHit,
+  Button,
+  Physics,
+  spawnPlayer,
+  step,
+  type PlayerState,
+} from '../src/shared/physics.js';
 import {
   decode,
   DecodeError,
@@ -24,6 +31,7 @@ function inputAt(tick: number): number {
     phase
   ]!;
   if (tick % 9 > 5) b &= ~Button.Jump;
+  if (tick % 23 === 0) b |= Button.Attack;
   return b;
 }
 
@@ -37,11 +45,22 @@ describe('protocol', () => {
       ackSeq: 99,
       entities: [
         { id: 1, state: s },
-        { id: 65535, state: { ...s, facing: -1, jumpHeld: true, dropFoothold: 12, dropTicks: 3 } },
+        {
+          id: 65535,
+          state: {
+            ...s,
+            facing: -1,
+            jumpHeld: true,
+            dropFoothold: 12,
+            dropTicks: 3,
+            attackTicks: 7,
+            hurtTicks: 9,
+          },
+        },
       ],
     };
     for (const msg of [
-      { op: Op.Input, seq: 4294967295, buttons: 15 } as const,
+      { op: Op.Input, seq: 4294967295, buttons: 31, viewTick: 77 } as const,
       { op: Op.Welcome, playerId: 7, tickRate: 30 } as const,
       snapshot,
     ]) {
@@ -188,3 +207,75 @@ describe('view', () => {
     expect(game.seesWholeMap).toBe(false);
   });
 });
+
+describe('lag compensation', () => {
+  /** Two players standing on the same spot, so b is inside a's reach. */
+  function setup() {
+    const game = new Game(map);
+    const a = game.addPlayer();
+    const b = game.addPlayer();
+    const tick = (buttonsA: number, buttonsB: number, viewTick?: number) => {
+      seq++;
+      game.pushInput(a, seq, buttonsA, viewTick);
+      game.pushInput(b, seq, buttonsB);
+      game.update();
+    };
+    let seq = 0;
+    for (let i = 0; i < 30; i++) tick(0, 0);
+    return { game, a, b, tick };
+  }
+
+  it('hits a target where the attacker saw it, not where it is now', () => {
+    const { game, a, b, tick } = setup();
+    const seenAt = game.tick;
+    // b jumps clear of the swing before a's attack reaches the server.
+    for (let i = 0; i < 8; i++) tick(0, Button.Jump);
+    expect(game.state(a)!.y - game.state(b)!.y).toBeGreaterThan(60);
+
+    tick(Button.Attack, Button.Jump, seenAt);
+
+    expect(game.hits).toEqual([{ attacker: a, target: b, tick: seenAt }]);
+    expect(game.state(b)!.hurtTicks).toBe(Physics.hurtTicks);
+    expect(game.state(b)!.vx).toBeGreaterThan(0);
+  });
+
+  it('misses when the attacker saw the target out of reach', () => {
+    const { game, tick } = setup();
+    for (let i = 0; i < 8; i++) tick(0, Button.Jump);
+    tick(Button.Attack, Button.Jump, game.tick);
+    expect(game.hits).toEqual([]);
+  });
+
+  it('does not rewind further than the limit', () => {
+    const { game, a, b, tick } = setup();
+    const seenAt = game.tick;
+    for (let i = 0; i < MAX_REWIND_TICKS + 30; i++) tick(0, Button.Right);
+    expect(game.state(b)!.x - game.state(a)!.x).toBeGreaterThan(150);
+    tick(Button.Attack, 0, seenAt);
+    expect(game.hits).toEqual([]);
+  });
+
+  it('predicts the attacker swing exactly', () => {
+    let s = spawnPlayer(map);
+    s = step(map, s, Button.Attack);
+    expect(s.attackTicks).toBe(Physics.attackTicks);
+    s = run(s, Button.Attack, Physics.attackTicks - 1);
+    expect(s.attackTicks).toBe(1);
+    s = step(map, s, Button.Attack);
+    expect(s.attackTicks).toBe(0);
+    s = step(map, s, Button.Attack);
+    expect(s.attackTicks).toBe(Physics.attackTicks);
+  });
+
+  it('ignores input while knocked back', () => {
+    let s = applyHit(spawnPlayer(map), 1);
+    s = step(map, s, Button.Left | Button.Attack);
+    expect(s.vx).toBeGreaterThan(0);
+    expect(s.attackTicks).toBe(0);
+  });
+});
+
+function run(s: PlayerState, buttons: number, ticks: number): PlayerState {
+  for (let i = 0; i < ticks; i++) s = step(map, s, buttons);
+  return s;
+}

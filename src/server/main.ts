@@ -56,7 +56,7 @@ wss.on('connection', (ws) => {
     if (!isBinary) return;
     try {
       const msg = decode(new Uint8Array(data as Buffer));
-      if (msg.op === Op.Input) game.pushInput(id, msg.seq, msg.buttons);
+      if (msg.op === Op.Input) game.pushInput(id, msg.seq, msg.buttons, msg.viewTick);
     } catch (err) {
       if (!(err instanceof DecodeError)) throw err;
       ws.close(1003, 'bad message');

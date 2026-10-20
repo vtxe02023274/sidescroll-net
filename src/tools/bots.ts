@@ -24,17 +24,22 @@ const bots: WebSocket[] = [];
 for (let i = 0; i < count; i++) {
   const ws = new WebSocket(values.url);
   let seq = 0;
+  let lastTick = 0;
   let timer: NodeJS.Timeout | undefined;
   ws.on('open', () => {
     connected++;
     timer = setInterval(() => {
       seq++;
-      ws.send(encode({ op: Op.Input, seq, buttons: botInput(seq, i) }));
+      ws.send(encode({ op: Op.Input, seq, buttons: botInput(seq, i), viewTick: lastTick }));
     }, 1000 / TICK_RATE);
   });
   ws.on('message', (data: Buffer) => {
     bytesIn += data.byteLength;
-    if (decode(new Uint8Array(data)).op === Op.Snapshot) snapshots++;
+    const msg = decode(new Uint8Array(data));
+    if (msg.op === Op.Snapshot) {
+      snapshots++;
+      lastTick = msg.tick;
+    }
   });
   ws.on('error', () => failed++);
   ws.on('close', () => clearInterval(timer));
