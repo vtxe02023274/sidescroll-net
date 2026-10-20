@@ -4,7 +4,7 @@
 
 An authoritative server for a 2D side-scrolling multiplayer game. The server runs the physics, each client predicts its own player and interpolates everyone else, so it still feels responsive at 300 ms of lag.
 
-Terrain is made of footholds: one-way platform segments that can slope, can be jumped through from below, and can be dropped through with down + jump. Many 2D online games work this way, and it handles slopes and stacked platforms better than a tile grid.
+Terrain is made of footholds: one-way platform segments that can slope, can be jumped through from below, and can be dropped through with down + jump. Ropes and ladders are vertical lines: up grabs one, climbing to the top steps onto the platform there, and a sideways jump lets go. Many 2D online games work this way, and it handles slopes and stacked platforms better than a tile grid.
 
 Try it in the browser (the server runs inside the page, with 3 bots): https://vtxe02023274.github.io/sidescroll-net/
 
@@ -34,12 +34,13 @@ npm run dev
 
 Open http://localhost:8080 and a second tab to see another player. The controls under the canvas change the simulated lag and turn prediction or interpolation off so you can compare.
 
-| Key        | Action                  |
-| ---------- | ----------------------- |
-| ← → or A D | Move                    |
-| Space      | Jump                    |
-| ↓ + Space  | Drop through a platform |
-| J or X     | Attack                  |
+| Key             | Action                  |
+| --------------- | ----------------------- |
+| ← → or A D      | Move                    |
+| Space           | Jump                    |
+| ↓ + Space       | Drop through a platform |
+| J or X          | Attack                  |
+| ↑ / ↓ on a rope | Climb                   |
 
 ## How it works
 

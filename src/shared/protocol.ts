@@ -7,7 +7,8 @@ import type { PlayerState } from './physics.js';
  * s2c Welcome   u8 op, u16 playerId, u8 tickRate
  * s2c Snapshot  u8 op, u32 tick, u32 ackSeq, u16 count, count * entity
  *   entity      u16 id, f32 x, f32 y, f32 vx, f32 vy, u16 foothold, u8 flags,
- *               u16 dropFoothold, u8 dropTicks, u8 attackTicks, u8 hurtTicks
+ *               u16 dropFoothold, u8 dropTicks, u8 attackTicks, u8 hurtTicks,
+ *               u16 rope, u8 ropeCooldown
  *   flags       bit 0 facing left, bit 1 jump held
  */
 export const Op = {
@@ -45,7 +46,7 @@ export interface SnapshotMessage {
 
 export type Message = InputMessage | WelcomeMessage | SnapshotMessage;
 
-const ENTITY_SIZE = 2 + 4 * 4 + 2 + 1 + 2 + 1 + 1 + 1;
+const ENTITY_SIZE = 2 + 4 * 4 + 2 + 1 + 2 + 1 + 1 + 1 + 2 + 1;
 
 export function encode(msg: Message): Uint8Array {
   switch (msg.op) {
@@ -83,6 +84,8 @@ export function encode(msg: Message): Uint8Array {
         view.setUint8(o + 23, s.dropTicks);
         view.setUint8(o + 24, s.attackTicks);
         view.setUint8(o + 25, s.hurtTicks);
+        view.setUint16(o + 26, s.rope, true);
+        view.setUint8(o + 28, s.ropeCooldown);
         o += ENTITY_SIZE;
       }
       return new Uint8Array(view.buffer);
@@ -140,6 +143,8 @@ export function decode(bytes: Uint8Array): Message {
             dropTicks: view.getUint8(o + 23),
             attackTicks: view.getUint8(o + 24),
             hurtTicks: view.getUint8(o + 25),
+            rope: view.getUint16(o + 26, true),
+            ropeCooldown: view.getUint8(o + 28),
           },
         });
         o += ENTITY_SIZE;

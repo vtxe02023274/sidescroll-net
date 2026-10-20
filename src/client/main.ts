@@ -27,6 +27,7 @@ function readButtons(): number {
   if (keys.has('ArrowRight') || keys.has('KeyD')) b |= Button.Right;
   if (keys.has('Space') || keys.has('KeyK') || keys.has('AltLeft')) b |= Button.Jump;
   if (keys.has('ArrowDown') || keys.has('KeyS')) b |= Button.Down;
+  if (keys.has('ArrowUp') || keys.has('KeyW')) b |= Button.Up;
   if (keys.has('KeyJ') || keys.has('KeyX') || keys.has('ControlLeft')) b |= Button.Attack;
   return b;
 }
@@ -129,6 +130,17 @@ function draw(now: number): void {
     ctx.lineTo(fh.x2, fh.y2);
   }
   ctx.stroke();
+
+  ctx.strokeStyle = '#b08a5a';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([6, 4]);
+  ctx.beginPath();
+  for (const rope of map.ropes.values()) {
+    ctx.moveTo(rope.x, rope.y1);
+    ctx.lineTo(rope.x, rope.y2);
+  }
+  ctx.stroke();
+  ctx.setLineDash([]);
 
   for (const id of interpolator.ids()) {
     const s = interpInput.checked

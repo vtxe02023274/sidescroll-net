@@ -24,7 +24,7 @@ Buttons for one client tick. Every input moves the player exactly one step.
 | Field       | Type | Size (bytes) | Description                                                                     |
 | ----------- | ---- | ------------ | ------------------------------------------------------------------------------- |
 | `seq`       | u32  | 4            |                                                                                 |
-| `buttons`   | u8   | 1            | Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack.                  |
+| `buttons`   | u8   | 1            | Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack, bit 5 up.        |
 | `view_tick` | u32  | 4            | Server tick the client was showing other players at. Used to rewind hit checks. |
 
 ### Welcome
@@ -48,7 +48,7 @@ Sent every other tick.
 | ---------- | ------------------------------- | ------------ | ------------------------------------------------------- |
 | `tick`     | u32                             | 4            |                                                         |
 | `ack_seq`  | u32                             | 4            | Last input sequence the server applied for this client. |
-| `entities` | [Entity](#entity)[] (u16 count) | 2 + 26n      |                                                         |
+| `entities` | [Entity](#entity)[] (u16 count) | 2 + 29n      |                                                         |
 
 ## Structs
 
@@ -69,3 +69,5 @@ One player as of the snapshot tick.
 | `drop_ticks`    | u8   | 1            | Ticks left before the dropped foothold can be landed on again. |
 | `attack_ticks`  | u8   | 1            | Ticks left in the current swing.                               |
 | `hurt_ticks`    | u8   | 1            | Ticks left of knockback.                                       |
+| `rope`          | u16  | 2            | Rope the player is climbing, 0 when not on a rope.             |
+| `rope_cooldown` | u8   | 1            | Ticks before a rope can be grabbed again.                      |

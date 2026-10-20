@@ -9,6 +9,7 @@ export const Button = {
   Jump: 4,
   Down: 8,
   Attack: 16,
+  Up: 32,
 } as const;
 
 export const Physics = {
@@ -24,6 +25,12 @@ export const Physics = {
   hurtTicks: 12,
   knockbackX: 300,
   knockbackY: 350,
+  climbSpeed: 100,
+  /** How far from a rope a player can be and still grab it. */
+  ropeReach: 8,
+  /** Ticks after letting go of a rope before grabbing one again. */
+  ropeCooldown: 10,
+  ropeJumpSpeed: 360,
 } as const;
 
 /** Everything the simulation needs to step one player. Plain data so it can be copied and sent. */
@@ -44,6 +51,9 @@ export interface PlayerState {
   attackTicks: number;
   /** Ticks left of knockback, during which input is ignored. */
   hurtTicks: number;
+  /** Rope id the player is climbing, 0 when not on a rope. */
+  rope: number;
+  ropeCooldown: number;
 }
 
 export function spawnPlayer(map: GameMap): PlayerState {
@@ -59,6 +69,8 @@ export function spawnPlayer(map: GameMap): PlayerState {
     jumpHeld: false,
     attackTicks: 0,
     hurtTicks: 0,
+    rope: 0,
+    ropeCooldown: 0,
   };
 }
 
@@ -105,7 +117,12 @@ export function step(map: GameMap, prev: PlayerState, buttons: number): PlayerSt
   if (s.attackTicks > 0) s.attackTicks--;
   else if (!stunned && buttons & Button.Attack) s.attackTicks = Physics.attackTicks;
 
-  if (s.foothold !== 0) {
+  if (s.ropeCooldown > 0) s.ropeCooldown--;
+  if (s.rope === 0 && !stunned) grabRope(map, s, buttons);
+
+  if (s.rope !== 0) {
+    stepRope(map, s, dir, buttons, jumpPressed);
+  } else if (s.foothold !== 0) {
     stepGround(map, s, dir, buttons, jumpPressed);
   } else {
     stepAir(map, s, dir);
@@ -132,6 +149,71 @@ export function step(map: GameMap, prev: PlayerState, buttons: number): PlayerSt
   s.vy = Math.fround(s.vy);
 
   return s;
+}
+
+/**
+ * Up grabs a rope the player overlaps. Down grabs one whose top is under a
+ * player standing on a foothold, so ladders can be climbed down from above.
+ */
+function grabRope(map: GameMap, s: PlayerState, buttons: number): void {
+  if (s.ropeCooldown > 0 || !(buttons & (Button.Up | Button.Down))) return;
+  for (const rope of map.ropes.values()) {
+    if (Math.abs(s.x - rope.x) > Physics.ropeReach) continue;
+    const fromBelow = buttons & Button.Up && s.y > rope.y1 && s.y <= rope.y2;
+    const fromAbove =
+      buttons & Button.Down &&
+      s.foothold !== 0 &&
+      Math.abs(s.y - rope.y1) < 2 &&
+      !(buttons & Button.Up);
+    if (fromBelow || fromAbove) {
+      s.rope = rope.id;
+      s.x = rope.x;
+      s.vx = 0;
+      s.vy = 0;
+      s.foothold = 0;
+      return;
+    }
+  }
+}
+
+function stepRope(
+  map: GameMap,
+  s: PlayerState,
+  dir: number,
+  buttons: number,
+  jumpPressed: boolean,
+): void {
+  const rope = map.ropes.get(s.rope)!;
+  // Jump off sideways; a jump without a direction keeps holding on.
+  if (jumpPressed && dir !== 0) {
+    s.rope = 0;
+    s.ropeCooldown = Physics.ropeCooldown;
+    s.vx = dir * Physics.walkSpeed;
+    s.vy = -Physics.ropeJumpSpeed;
+    return;
+  }
+
+  const climb = (buttons & Button.Down ? 1 : 0) - (buttons & Button.Up ? 1 : 0);
+  s.y += climb * Physics.climbSpeed * DT;
+  s.vx = 0;
+  s.vy = 0;
+
+  if (s.y <= rope.y1) {
+    s.y = rope.y1;
+    // Reached the top: step onto the foothold there, or stay at the end.
+    const top = [...map.footholds.values()].find(
+      (fh) => footholdContains(fh, s.x) && Math.abs(footholdY(fh, s.x) - rope.y1) < 2,
+    );
+    if (top) {
+      s.rope = 0;
+      s.ropeCooldown = Physics.ropeCooldown;
+      s.foothold = top.id;
+      s.y = footholdY(top, s.x);
+    }
+  } else if (s.y > rope.y2) {
+    s.rope = 0;
+    s.ropeCooldown = Physics.ropeCooldown;
+  }
 }
 
 function stepGround(

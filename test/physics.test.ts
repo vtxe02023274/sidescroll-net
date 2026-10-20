@@ -127,3 +127,67 @@ describe('step', () => {
     }
   });
 });
+
+describe('ropes', () => {
+  const roped = loadMap({
+    ...data,
+    footholds: [...data.footholds, { id: 5, x1: 380, y1: 300, x2: 480, y2: 300 }],
+    ropes: [{ id: 1, x: 400, y1: 300, y2: 500 }],
+  });
+  const at = (x: number, y: number, foothold = 0): PlayerState => ({
+    ...spawnPlayer(roped),
+    x,
+    y,
+    foothold,
+  });
+  const go = (s: PlayerState, buttons: number, ticks: number) => {
+    for (let i = 0; i < ticks; i++) s = step(roped, s, buttons);
+    return s;
+  };
+
+  it('grabs a rope from the ground with up and climbs to the platform on top', () => {
+    let s = at(395, 500, 1);
+    s = step(roped, s, Button.Up);
+    expect(s.rope).toBe(1);
+    expect(s.x).toBe(400);
+    s = go(s, Button.Up, 80);
+    expect(s.rope).toBe(0);
+    expect(s.foothold).toBe(5);
+    expect(s.y).toBe(300);
+  });
+
+  it('climbs down from the top with down and lets go at the bottom', () => {
+    let s = at(402, 300, 5);
+    s = step(roped, s, Button.Down);
+    expect(s.rope).toBe(1);
+    s = go(s, Button.Down, 70);
+    expect(s.rope).toBe(0);
+    expect(s.y).toBeGreaterThan(300);
+  });
+
+  it('jumps off sideways but not straight up', () => {
+    let s = at(400, 400);
+    s = step(roped, s, Button.Up);
+    expect(s.rope).toBe(1);
+    s = step(roped, s, Button.Jump);
+    expect(s.rope).toBe(1);
+    s = step(roped, s, 0);
+    s = step(roped, s, Button.Jump | Button.Right);
+    expect(s.rope).toBe(0);
+    expect(s.vx).toBeGreaterThan(0);
+    expect(s.vy).toBeLessThan(0);
+    // Holding up right after jumping off does not grab it again at once.
+    s = step(roped, s, Button.Up);
+    expect(s.rope).toBe(0);
+  });
+
+  it('ignores ropes out of reach', () => {
+    const s = step(roped, at(420, 500, 1), Button.Up);
+    expect(s.rope).toBe(0);
+  });
+
+  it('rejects broken ropes', () => {
+    expect(() => loadMap({ ...data, ropes: [{ id: 1, x: 0, y1: 10, y2: 5 }] })).toThrow(/y2 must/);
+    expect(() => loadMap({ ...data, ropes: [{ id: 0, x: 0, y1: 0, y2: 5 }] })).toThrow(/unique/);
+  });
+});

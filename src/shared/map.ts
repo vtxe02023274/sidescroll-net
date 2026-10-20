@@ -11,6 +11,16 @@ export interface Foothold {
   y2: number;
 }
 
+/** A rope or ladder: a vertical line players climb with up and down. */
+export interface Rope {
+  id: number;
+  x: number;
+  /** Top end. Usually sits on a foothold so climbing up steps onto it. */
+  y1: number;
+  /** Bottom end. Climbing past it lets go. */
+  y2: number;
+}
+
 export interface MapData {
   name: string;
   left: number;
@@ -18,6 +28,7 @@ export interface MapData {
   bottom: number;
   spawn: { x: number; y: number };
   footholds: Foothold[];
+  ropes?: Rope[];
 }
 
 export interface LinkedFoothold extends Foothold {
@@ -28,6 +39,7 @@ export interface LinkedFoothold extends Foothold {
 export interface GameMap {
   data: MapData;
   footholds: Map<number, LinkedFoothold>;
+  ropes: Map<number, Rope>;
 }
 
 const LINK_EPSILON = 0.5;
@@ -55,7 +67,15 @@ export function loadMap(data: MapData): GameMap {
     }
   }
 
-  return { data, footholds };
+  const ropes = new Map<number, Rope>();
+  for (const rope of data.ropes ?? []) {
+    if (rope.y2 <= rope.y1) throw new Error(`rope ${rope.id}: y2 must be greater than y1`);
+    if (rope.id === 0 || ropes.has(rope.id))
+      throw new Error(`rope ${rope.id}: id must be unique and not 0`);
+    ropes.set(rope.id, rope);
+  }
+
+  return { data, footholds, ropes };
 }
 
 /** Height of the foothold at x. Callers make sure x is within the segment. */

@@ -39,6 +39,12 @@ structs:
       - name: hurt_ticks
         type: u8
         doc: Ticks left of knockback.
+      - name: rope
+        type: u16
+        doc: Rope the player is climbing, 0 when not on a rope.
+      - name: rope_cooldown
+        type: u8
+        doc: Ticks before a rope can be grabbed again.
 
 packets:
   - name: Input
@@ -50,7 +56,7 @@ packets:
         type: u32
       - name: buttons
         type: u8
-        doc: Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack.
+        doc: Bit 0 left, bit 1 right, bit 2 jump, bit 3 down, bit 4 attack, bit 5 up.
       - name: view_tick
         type: u32
         doc: Server tick the client was showing other players at. Used to rewind hit checks.

@@ -32,6 +32,7 @@ function inputAt(tick: number): number {
   ]!;
   if (tick % 9 > 5) b &= ~Button.Jump;
   if (tick % 23 === 0) b |= Button.Attack;
+  if (tick % 31 < 12) b |= Button.Up;
   return b;
 }
 
@@ -55,12 +56,14 @@ describe('protocol', () => {
             dropTicks: 3,
             attackTicks: 7,
             hurtTicks: 9,
+            rope: 3,
+            ropeCooldown: 4,
           },
         },
       ],
     };
     for (const msg of [
-      { op: Op.Input, seq: 4294967295, buttons: 31, viewTick: 77 } as const,
+      { op: Op.Input, seq: 4294967295, buttons: 63, viewTick: 77 } as const,
       { op: Op.Welcome, playerId: 7, tickRate: 30 } as const,
       snapshot,
     ]) {
