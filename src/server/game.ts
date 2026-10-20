@@ -20,6 +20,9 @@ const MAX_INPUTS_PER_TICK = 2;
  */
 export const MAX_REWIND_TICKS = 15;
 
+/** Player ids are u16 on the wire and 0 means nobody, so 65535 players at most. */
+export const MAX_PLAYER_ID = 65535;
+
 /** Reach of a swing in front of the attacker, and a little behind. */
 const ATTACK_BOX = { front: 70, back: 10, up: 50, down: 5 };
 /** Player body around its feet position. */
@@ -73,8 +76,20 @@ export class Game {
     this.view = options.view ?? { x: Infinity, y: Infinity };
   }
 
+  /** True when every id is taken and addPlayer would throw. */
+  get full(): boolean {
+    return this.players.size >= MAX_PLAYER_ID;
+  }
+
+  /**
+   * Adds a player with the next id that is not in use, wrapping around after
+   * MAX_PLAYER_ID. Throws when the game is full.
+   */
   addPlayer(): number {
-    const id = this.nextId++;
+    if (this.full) throw new Error(`game is full: ${MAX_PLAYER_ID} players`);
+    let id = this.nextId;
+    while (this.players.has(id)) id = id === MAX_PLAYER_ID ? 1 : id + 1;
+    this.nextId = id === MAX_PLAYER_ID ? 1 : id + 1;
     this.players.set(id, {
       id,
       state: spawnPlayer(this.map),

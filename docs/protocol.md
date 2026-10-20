@@ -34,10 +34,10 @@ Opcode `0x02` · server → client
 
 First message after connecting.
 
-| Field       | Type | Size (bytes) | Description |
-| ----------- | ---- | ------------ | ----------- |
-| `player_id` | u16  | 2            |             |
-| `tick_rate` | u8   | 1            |             |
+| Field       | Type | Size (bytes) | Description                                               |
+| ----------- | ---- | ------------ | --------------------------------------------------------- |
+| `player_id` | u16  | 2            | 1 to 65535, never 0. Ids of players that left are reused. |
+| `tick_rate` | u8   | 1            |                                                           |
 
 ### Snapshot
 
