@@ -66,7 +66,7 @@ npm run tiled2map -- my-map.tmj -o maps/my-map.json
 MAP=maps/my-map.json npm start
 ```
 
-垂直的線段會略過，左畫到右或右畫到左都可以。繩子另外放在叫 `ropes` 的物件圖層，用垂直的折線畫。範例在 `test/fixtures/hills.tmj`。
+垂直的線段會略過，左畫到右或右畫到左都可以，旋轉過的物件照旋轉後的位置轉換，隱藏的圖層不會轉。繩子另外放在叫 `ropes` 的物件圖層，用垂直的折線畫。圖層名稱可以用 `--layer`、`--ropes` 改，出生點名稱用 `--spawn`。範例在 `test/fixtures/hills.tmj`。
 
 ## 專案結構
 
