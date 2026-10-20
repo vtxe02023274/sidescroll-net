@@ -18,7 +18,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "tiled2map": "node dist/tools/tiled-cli.js",
-    "bots": "node dist/tools/bots.js"
+    "bots": "node dist/tools/bots.js",
+    "build:site": "esbuild src/client/main.ts --bundle --format=esm --target=es2022 --minify --outfile=site/client.js && node -e \"const f=require('fs');f.copyFileSync('public/index.html','site/index.html');f.copyFileSync('maps/field.json','site/map.json')\""
   },
   "dependencies": {
     "ws": "^8.22.0"

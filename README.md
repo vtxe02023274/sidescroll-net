@@ -6,6 +6,10 @@
 
 地形用「踏板」（foothold）描述：一段一段的單向平台線段，可以有斜坡，可以從下面跳上去，按下＋跳可以往下穿。很多 2D 線上遊戲都是這種做法，比格子地圖更適合斜坡和多層平台。
 
+線上試玩（伺服器跑在瀏覽器裡，另外有 3 個機器人）：https://vtxe02023274.github.io/sidescroll-net/
+
+![畫面](docs/screenshot.png)
+
 ```mermaid
 sequenceDiagram
   participant C as 客戶端

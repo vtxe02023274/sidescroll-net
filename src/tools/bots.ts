@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
-import { Button, TICK_RATE } from '../shared/physics.js';
+import { botInput } from '../shared/bot.js';
+import { TICK_RATE } from '../shared/physics.js';
 import { decode, encode, Op } from '../shared/protocol.js';
 
 const { values } = parseArgs({
@@ -18,18 +19,6 @@ let connected = 0;
 let snapshots = 0;
 let bytesIn = 0;
 let failed = 0;
-
-/**
- * Walks right for a while so the bots spread over the map, then wanders left
- * and right and jumps now and then, like a bored player.
- */
-function botInput(tick: number, seed: number): number {
-  if (tick < seed * 3) return Button.Right;
-  const phase = Math.floor((tick + seed * 37) / 60) % 3;
-  let b = phase === 0 ? Button.Right : phase === 1 ? Button.Left : 0;
-  if ((tick + seed) % 50 < 3) b |= Button.Jump;
-  return b;
-}
 
 const bots: WebSocket[] = [];
 for (let i = 0; i < count; i++) {

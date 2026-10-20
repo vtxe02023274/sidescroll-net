@@ -6,6 +6,10 @@ An authoritative server for a 2D side-scrolling multiplayer game. The server run
 
 Terrain is made of footholds: one-way platform segments that can slope, can be jumped through from below, and can be dropped through with down + jump. Many 2D online games work this way, and it handles slopes and stacked platforms better than a tile grid.
 
+Try it in the browser (the server runs inside the page, with 3 bots): https://vtxe02023274.github.io/sidescroll-net/
+
+![screenshot](docs/screenshot.png)
+
 ```mermaid
 sequenceDiagram
   participant C as Client

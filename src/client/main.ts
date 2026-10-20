@@ -2,6 +2,7 @@ import { loadMap, type GameMap, type MapData } from '../shared/map.js';
 import { Button, TICK_RATE, type PlayerState } from '../shared/physics.js';
 import { decode, encode, Op, type Message } from '../shared/protocol.js';
 import { Interpolator, Predictor } from './netcode.js';
+import { connectWebSocket, startLocalServer } from './transport.js';
 
 const canvas = document.querySelector<HTMLCanvasElement>('#view')!;
 const ctx = canvas.getContext('2d')!;
@@ -46,14 +47,19 @@ const interpolator = new Interpolator(100);
 let myId = 0;
 let serverSelf: PlayerState | undefined;
 
-const ws = new WebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
-ws.binaryType = 'arraybuffer';
-ws.onmessage = (e) => {
-  const msg = decode(new Uint8Array(e.data as ArrayBuffer));
+// Static hosts have no game server, so run one inside the page instead.
+const local =
+  new URLSearchParams(location.search).has('local') || location.hostname.endsWith('github.io');
+const transport = local
+  ? startLocalServer(map, 3)
+  : connectWebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
+let connected = true;
+transport.onMessage = (bytes) => {
+  const msg = decode(bytes);
   delayed(() => handle(msg));
 };
-ws.onclose = () => {
-  hud.textContent = 'disconnected';
+transport.onClose = () => {
+  connected = false;
 };
 
 function handle(msg: Message): void {
@@ -75,11 +81,8 @@ function handle(msg: Message): void {
 }
 
 function sendInput(seq: number, buttons: number): void {
-  if (ws.readyState !== WebSocket.OPEN) return;
   const bytes = encode({ op: Op.Input, seq, buttons });
-  delayed(() => {
-    if (ws.readyState === WebSocket.OPEN) ws.send(bytes);
-  });
+  delayed(() => transport.send(bytes));
 }
 
 // Client ticks at the same fixed rate as the server.
@@ -134,7 +137,12 @@ function draw(now: number): void {
   if (self) drawPlayer(self, '#6fa8dc', `#${myId}`);
   ctx.restore();
 
+  if (!connected) {
+    hud.textContent = 'disconnected';
+    return;
+  }
   hud.textContent = [
+    local ? 'local server' : 'online',
     `player #${myId || '-'}`,
     `pending inputs ${predictor.pendingCount}`,
     `last correction ${predictor.lastCorrection.toFixed(2)} px`,
