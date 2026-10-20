@@ -2,6 +2,7 @@ import type { GameMap } from '../shared/map.js';
 import {
   applyHit,
   attackStarted,
+  Physics,
   spawnPlayer,
   step,
   TICK_RATE,
@@ -37,6 +38,12 @@ interface Player {
   budget: number;
   /** Positions at the end of recent ticks, newest last, for rewinding hit checks. */
   history: { tick: number; x: number; y: number }[];
+  /**
+   * Server tick from which the player can be hit again. Counted in server
+   * ticks, not in the hurtTicks of its state, which only run down when the
+   * client sends input: a client that goes quiet after a hit stays hittable.
+   */
+  hittableAt: number;
 }
 
 export interface Hit {
@@ -97,6 +104,7 @@ export class Game {
       ackSeq: 0,
       budget: MAX_INPUTS_PER_TICK,
       history: [],
+      hittableAt: 0,
     });
     return id;
   }
@@ -169,7 +177,7 @@ export class Game {
     const bottom = a.y + ATTACK_BOX.down;
 
     for (const target of this.players.values()) {
-      if (target === attacker || target.state.hurtTicks > 0) continue;
+      if (target === attacker || this.tick < target.hittableAt) continue;
       const pos = positionAt(target, rewind);
       if (
         pos.x + BODY.halfWidth >= left &&
@@ -178,6 +186,7 @@ export class Game {
         pos.y - BODY.height <= bottom
       ) {
         target.state = applyHit(target.state, a.facing);
+        target.hittableAt = this.tick + Physics.hurtTicks;
         this.hits.push({ attacker: attacker.id, target: target.id, tick: rewind });
       }
     }

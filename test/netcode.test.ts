@@ -339,6 +339,35 @@ describe('lag compensation', () => {
     expect(game.hits).toEqual([]);
   });
 
+  it('can hit a target again after the knockback, even if it stops sending input', () => {
+    const { game, a, b } = setup();
+    let seq = 1000;
+    let hits = 0;
+    let swings = 0;
+    for (let i = 0; i < 300; i++) {
+      seq++;
+      const swing = i % Physics.hurtTicks === 0;
+      if (swing) swings++;
+      game.pushInput(a, seq, swing ? Button.Attack : 0);
+      if (!hits) game.pushInput(b, seq, 0);
+      game.update();
+      hits += game.hits.filter((h) => h.target === b).length;
+    }
+    expect(hits).toBe(swings);
+  });
+
+  it('does not hit a target twice during one knockback', () => {
+    const { game, a, b, tick } = setup();
+    tick(Button.Attack, 0);
+    expect(game.hits).toHaveLength(1);
+    for (let i = 1; i < Physics.hurtTicks; i++) {
+      tick(i % 2 ? 0 : Button.Attack, 0);
+      expect(game.hits).toEqual([]);
+    }
+    expect(game.state(b)!.hurtTicks).toBe(1);
+    expect(game.state(a)!.hurtTicks).toBe(0);
+  });
+
   it('predicts the attacker swing exactly', () => {
     let s = spawnPlayer(map);
     s = step(map, s, Button.Attack);
