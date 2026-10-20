@@ -39,6 +39,7 @@ Open http://localhost:8080 and a second tab to see another player. The controls 
 | ← → or A D | Move                    |
 | Space      | Jump                    |
 | ↓ + Space  | Drop through a platform |
+| J or X     | Attack                  |
 
 ## How it works
 
@@ -47,6 +48,8 @@ Open http://localhost:8080 and a second tab to see another player. The controls 
 **The server only trusts input.** Clients send buttons, never positions. Each input moves the player one step, the queue holds at most 8 and on average one is spent per tick, so flooding inputs does not make anyone faster.
 
 **Small snapshots.** Sent every other tick, 24 bytes per player, plus the last input sequence the server applied for that client.
+
+**Lag compensation.** An attacker sees other players in the past, by its latency plus the interpolation delay, so every input carries the server tick the client was showing others at. The server keeps the last 15 ticks of positions and rewinds the targets to that tick before checking the swing. It never rewinds more than 500 ms, so a very laggy client cannot hit positions from too long ago.
 
 **Interpolation for others.** Remote players are drawn 100 ms in the past, between the two snapshots around that time, so jitter does not make them jump.
 
