@@ -54,7 +54,7 @@ npm run dev
 
 **別人用內插**：其他玩家畫在 100 ms 之前，取前後兩張快照中間的位置，網路抖動也不會跳。
 
-封包格式定義在 `protocol.yaml`，欄位表見 [docs/protocol.md](docs/protocol.md)（用 [pktspec](https://github.com/vtxe02023274/pktspec) 產生）。
+設計上的取捨寫在 [docs/design.md](docs/design.md)。封包格式定義在 `protocol.yaml`，欄位表見 [docs/protocol.md](docs/protocol.md)（用 [pktspec](https://github.com/vtxe02023274/pktspec) 產生）。
 
 ## 用 Tiled 畫地圖
 
