@@ -16,6 +16,8 @@ interface TiledLayer {
   objects?: TiledObject[];
   offsetx?: number;
   offsety?: number;
+  /** Hidden layers, and everything in a hidden group, are left out. */
+  visible?: boolean;
 }
 
 interface TiledObject {
@@ -24,6 +26,8 @@ interface TiledObject {
   class?: string;
   x: number;
   y: number;
+  /** Degrees clockwise around (x, y). */
+  rotation?: number;
   point?: boolean;
   polyline?: { x: number; y: number }[];
 }
@@ -39,8 +43,9 @@ export interface ConvertOptions {
 
 /**
  * Converts a Tiled JSON map into map data. Every polyline in the foothold
- * layer becomes a chain of linked footholds, one per segment. Draw them left
- * to right or right to left, either works. Vertical segments are skipped
+ * layer becomes a chain of linked footholds, one per segment, after applying
+ * the object's rotation. Draw them left to right or right to left, either
+ * works. Hidden layers are ignored. Vertical segments are skipped
  * since footholds can only be stood on; draw ropes as vertical polylines in
  * a separate `ropes` layer instead.
  */
@@ -59,14 +64,14 @@ export function convertTiledMap(
   const footholds: Foothold[] = [];
   let id = 1;
   for (const obj of layer.layer.objects ?? []) {
-    if (!obj.polyline) continue;
-    for (let i = 0; i + 1 < obj.polyline.length; i++) {
-      const a = obj.polyline[i]!;
-      const b = obj.polyline[i + 1]!;
-      let x1 = round(layer.offsetX + obj.x + a.x);
-      let y1 = round(layer.offsetY + obj.y + a.y);
-      let x2 = round(layer.offsetX + obj.x + b.x);
-      let y2 = round(layer.offsetY + obj.y + b.y);
+    const points = polylinePoints(layer, obj);
+    for (let i = 0; i + 1 < points.length; i++) {
+      const a = points[i]!;
+      const b = points[i + 1]!;
+      let x1 = round(a.x);
+      let y1 = round(a.y);
+      let x2 = round(b.x);
+      let y2 = round(b.y);
       if (x1 === x2) continue;
       if (x1 > x2) [x1, y1, x2, y2] = [x2, y2, x1, y1];
       footholds.push({ id: id++, x1, y1, x2, y2 });
@@ -95,14 +100,14 @@ export function convertTiledMap(
   const ropes: Rope[] = [];
   const ropeLayer = objectLayers.find((l) => l.layer.name === (options.ropeLayer ?? 'ropes'));
   for (const obj of ropeLayer?.layer.objects ?? []) {
-    if (!obj.polyline) continue;
-    for (let i = 0; i + 1 < obj.polyline.length; i++) {
-      const a = obj.polyline[i]!;
-      const b = obj.polyline[i + 1]!;
+    const points = polylinePoints(ropeLayer!, obj);
+    for (let i = 0; i + 1 < points.length; i++) {
+      const a = points[i]!;
+      const b = points[i + 1]!;
       if (Math.abs(a.x - b.x) > 0.5) continue;
-      const x = round(ropeLayer!.offsetX + obj.x + a.x);
-      const y1 = round(ropeLayer!.offsetY + obj.y + Math.min(a.y, b.y));
-      const y2 = round(ropeLayer!.offsetY + obj.y + Math.max(a.y, b.y));
+      const x = round(a.x);
+      const y1 = round(Math.min(a.y, b.y));
+      const y2 = round(Math.max(a.y, b.y));
       if (y2 > y1) ropes.push({ id: ropes.length + 1, x, y1, y2 });
     }
   }
@@ -117,10 +122,26 @@ interface PlacedLayer {
   offsetY: number;
 }
 
-/** Group layers nest other layers and add their offsets. */
+/**
+ * Map coordinates of the points of a polyline object, rotated by the object's
+ * rotation. Tiled rotates clockwise around the object position, and with y
+ * pointing down that is the usual rotation formula. Empty for other objects.
+ */
+function polylinePoints(layer: PlacedLayer, obj: TiledObject): { x: number; y: number }[] {
+  const angle = ((obj.rotation ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(angle);
+  const sin = Math.sin(angle);
+  return (obj.polyline ?? []).map((p) => ({
+    x: layer.offsetX + obj.x + p.x * cos - p.y * sin,
+    y: layer.offsetY + obj.y + p.x * sin + p.y * cos,
+  }));
+}
+
+/** Group layers nest other layers and add their offsets. Hidden layers are skipped. */
 function flatten(layers: TiledLayer[], offsetX = 0, offsetY = 0): PlacedLayer[] {
   const out: PlacedLayer[] = [];
   for (const layer of layers) {
+    if (layer.visible === false) continue;
     const x = offsetX + (layer.offsetx ?? 0);
     const y = offsetY + (layer.offsety ?? 0);
     if (layer.type === 'group') out.push(...flatten(layer.layers ?? [], x, y));

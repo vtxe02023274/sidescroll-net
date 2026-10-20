@@ -10,12 +10,15 @@ const { values, positionals } = parseArgs({
     out: { type: 'string', short: 'o' },
     layer: { type: 'string' },
     spawn: { type: 'string' },
+    ropes: { type: 'string' },
   },
 });
 
 const input = positionals[0];
 if (!input || !values.out) {
-  console.error('usage: tiled2map <map.tmj> -o <out.json> [--layer footholds] [--spawn spawn]');
+  console.error(
+    'usage: tiled2map <map.tmj> -o <out.json> [--layer footholds] [--spawn spawn] [--ropes ropes]',
+  );
   process.exit(2);
 }
 
@@ -25,10 +28,13 @@ try {
   const map = convertTiledMap(tiled, name, {
     footholdLayer: values.layer,
     spawnName: values.spawn,
+    ropeLayer: values.ropes,
   });
   loadMap(map);
   await writeFile(values.out, JSON.stringify(map, null, 2) + '\n');
-  console.log(`${input}: ${map.footholds.length} footholds -> ${values.out}`);
+  console.log(
+    `${input}: ${map.footholds.length} footholds, ${map.ropes?.length ?? 0} ropes -> ${values.out}`,
+  );
 } catch (err) {
   console.error(`${input}: ${(err as Error).message}`);
   process.exit(1);
