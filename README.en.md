@@ -32,7 +32,7 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:8080 and a second tab to see another player. The controls under the canvas change the simulated lag and turn prediction or interpolation off so you can compare.
+Open http://localhost:8080 and a second tab to see another player. The controls under the canvas change the simulated lag and turn prediction or interpolation off so you can compare. The graph shows pending inputs, bytes received per second and the prediction correction live (it spikes when someone knocks you back).
 
 | Key             | Action                  |
 | --------------- | ----------------------- |

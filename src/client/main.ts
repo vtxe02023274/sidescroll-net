@@ -1,6 +1,7 @@
 import { loadMap, type GameMap, type MapData } from '../shared/map.js';
 import { Button, Physics, TICK_RATE, type PlayerState } from '../shared/physics.js';
 import { decode, encode, Op, type Message } from '../shared/protocol.js';
+import { Graph } from './graph.js';
 import { Interpolator, Predictor } from './netcode.js';
 import { connectWebSocket, startLocalServer } from './transport.js';
 
@@ -56,7 +57,19 @@ const transport = local
   ? startLocalServer(map, 3)
   : connectWebSocket(`${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}`);
 let connected = true;
+const graph = new Graph(document.querySelector<HTMLCanvasElement>('#graph')!);
+const pendingSeries = graph.add('pending inputs', '#6fa8dc', 12);
+const bytesSeries = graph.add('bytes in / s', '#d98b5f', 2000);
+const correctionSeries = graph.add('correction px', '#e06666', 4);
+let bytesThisSecond = 0;
+let bytesPerSecond = 0;
+setInterval(() => {
+  bytesPerSecond = bytesThisSecond;
+  bytesThisSecond = 0;
+}, 1000);
+
 transport.onMessage = (bytes) => {
+  bytesThisSecond += bytes.byteLength;
   const msg = decode(bytes);
   delayed(() => handle(msg));
 };
@@ -156,6 +169,10 @@ function draw(now: number): void {
     hud.textContent = 'disconnected';
     return;
   }
+  graph.push(pendingSeries, predictor.pendingCount);
+  graph.push(bytesSeries, bytesPerSecond);
+  graph.push(correctionSeries, predictor.lastCorrection);
+  graph.draw();
   hud.textContent = [
     local ? 'local server' : 'online',
     `player #${myId || '-'}`,
