@@ -44,10 +44,43 @@ export interface GameMap {
 
 const LINK_EPSILON = 0.5;
 
+/** Ids are u16 on the wire and 0 means none, so they run from 1 to 65535. */
+const MAX_ID = 65535;
+
+function checkNumbers(what: string, obj: object, keys: string[]): void {
+  for (const k of keys) {
+    const v = (obj as Record<string, unknown>)[k];
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      throw new Error(`${what}: ${k} must be a finite number, got ${JSON.stringify(v)}`);
+    }
+  }
+}
+
+function checkId(what: string, id: unknown): void {
+  if (!Number.isInteger(id) || (id as number) < 1 || (id as number) > MAX_ID) {
+    throw new Error(`${what}: id must be an integer from 1 to ${MAX_ID}`);
+  }
+}
+
+/**
+ * Checks map data and links its footholds. Map files are hand written or
+ * converted, so anything the simulation or the wire format cannot represent
+ * is refused here instead of breaking players later.
+ */
 export function loadMap(data: MapData): GameMap {
+  checkNumbers('map', data, ['left', 'right', 'bottom']);
+  if (data.left >= data.right) throw new Error('map: left must be less than right');
+  checkNumbers('spawn', data.spawn ?? {}, ['x', 'y']);
+  const { spawn } = data;
+  if (spawn.x < data.left || spawn.x > data.right || spawn.y > data.bottom) {
+    throw new Error(`spawn (${spawn.x}, ${spawn.y}) must be inside the map bounds`);
+  }
+
   const footholds = new Map<number, LinkedFoothold>();
 
   for (const fh of data.footholds) {
+    checkId(`foothold ${fh.id}`, fh.id);
+    checkNumbers(`foothold ${fh.id}`, fh, ['x1', 'y1', 'x2', 'y2']);
     if (fh.x2 <= fh.x1) {
       throw new Error(`foothold ${fh.id}: x2 must be greater than x1`);
     }
@@ -69,9 +102,10 @@ export function loadMap(data: MapData): GameMap {
 
   const ropes = new Map<number, Rope>();
   for (const rope of data.ropes ?? []) {
+    checkId(`rope ${rope.id}`, rope.id);
+    checkNumbers(`rope ${rope.id}`, rope, ['x', 'y1', 'y2']);
     if (rope.y2 <= rope.y1) throw new Error(`rope ${rope.id}: y2 must be greater than y1`);
-    if (rope.id === 0 || ropes.has(rope.id))
-      throw new Error(`rope ${rope.id}: id must be unique and not 0`);
+    if (ropes.has(rope.id)) throw new Error(`rope ${rope.id}: duplicate id`);
     ropes.set(rope.id, rope);
   }
 
