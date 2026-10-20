@@ -16,6 +16,10 @@ describe('convertTiledMap', () => {
     ]);
   });
 
+  it('reads vertical polylines in the ropes layer as ropes', () => {
+    expect(map.ropes).toEqual([{ id: 1, x: 800, y1: 300, y2: 500 }]);
+  });
+
   it('links the segments of one polyline', () => {
     const game = loadMap(map);
     expect(game.footholds.get(1)!.next).toBe(2);

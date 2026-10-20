@@ -66,7 +66,7 @@ npm run tiled2map -- my-map.tmj -o maps/my-map.json
 MAP=maps/my-map.json npm start
 ```
 
-Vertical segments are skipped, and polylines can be drawn in either direction. There is an example in `test/fixtures/hills.tmj`.
+Vertical segments are skipped, and polylines can be drawn in either direction. Ropes go in a separate object layer called `ropes`, drawn as vertical polylines. There is an example in `test/fixtures/hills.tmj`.
 
 ## Layout
 

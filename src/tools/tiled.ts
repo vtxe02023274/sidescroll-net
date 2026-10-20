@@ -1,4 +1,4 @@
-import type { Foothold, MapData } from '../shared/map.js';
+import type { Foothold, MapData, Rope } from '../shared/map.js';
 
 /** The parts of a Tiled JSON map (.tmj) this converter reads. */
 interface TiledMap {
@@ -33,13 +33,16 @@ export interface ConvertOptions {
   footholdLayer?: string;
   /** Name or class of the point object used as spawn. */
   spawnName?: string;
+  /** Optional object layer whose vertical polylines become ropes. */
+  ropeLayer?: string;
 }
 
 /**
  * Converts a Tiled JSON map into map data. Every polyline in the foothold
  * layer becomes a chain of linked footholds, one per segment. Draw them left
  * to right or right to left, either works. Vertical segments are skipped
- * since footholds can only be stood on.
+ * since footholds can only be stood on; draw ropes as vertical polylines in
+ * a separate `ropes` layer instead.
  */
 export function convertTiledMap(
   tiled: TiledMap,
@@ -89,7 +92,22 @@ export function convertTiledMap(
     spawn = { x: first.x1, y: Math.max(0, Math.min(first.y1, first.y2) - 1) };
   }
 
-  return { name, left: 0, right, bottom, spawn, footholds };
+  const ropes: Rope[] = [];
+  const ropeLayer = objectLayers.find((l) => l.layer.name === (options.ropeLayer ?? 'ropes'));
+  for (const obj of ropeLayer?.layer.objects ?? []) {
+    if (!obj.polyline) continue;
+    for (let i = 0; i + 1 < obj.polyline.length; i++) {
+      const a = obj.polyline[i]!;
+      const b = obj.polyline[i + 1]!;
+      if (Math.abs(a.x - b.x) > 0.5) continue;
+      const x = round(ropeLayer!.offsetX + obj.x + a.x);
+      const y1 = round(ropeLayer!.offsetY + obj.y + Math.min(a.y, b.y));
+      const y2 = round(ropeLayer!.offsetY + obj.y + Math.max(a.y, b.y));
+      if (y2 > y1) ropes.push({ id: ropes.length + 1, x, y1, y2 });
+    }
+  }
+
+  return { name, left: 0, right, bottom, spawn, footholds, ...(ropes.length ? { ropes } : {}) };
 }
 
 interface PlacedLayer {
