@@ -15,8 +15,10 @@ import {
   decode,
   DecodeError,
   encode,
+  encodeSnapshotDelta,
   Op,
   setSnapshotAck,
+  SnapshotReader,
   type SnapshotMessage,
 } from '../src/shared/protocol.js';
 
@@ -136,6 +138,8 @@ describe('prediction', () => {
     const latencyTicks = 6;
     const toServer: { at: number; seq: number; buttons: number }[] = [];
     const toClient: { at: number; bytes: Uint8Array }[] = [];
+    const reader = new SnapshotReader();
+    let sent: SnapshotMessage | undefined;
     let worst = 0;
 
     for (let tick = 0; tick < 600; tick++) {
@@ -147,11 +151,15 @@ describe('prediction', () => {
         game.pushInput(id, m.seq, m.buttons);
       }
       game.update();
-      if (tick % 2 === 0)
-        toClient.push({ at: tick + latencyTicks, bytes: encode(game.snapshotFor(id)) });
+      if (tick % 2 === 0) {
+        const snapshot = game.snapshotFor(id);
+        const bytes = sent ? encodeSnapshotDelta(snapshot, sent) : encode(snapshot);
+        toClient.push({ at: tick + latencyTicks, bytes });
+        sent = snapshot;
+      }
 
       while (toClient[0] && toClient[0].at <= tick) {
-        const msg = decode(toClient.shift()!.bytes) as SnapshotMessage;
+        const msg = reader.read(toClient.shift()!.bytes) as SnapshotMessage;
         predictor.reconcile(msg.entities.find((e) => e.id === id)!.state, msg.ackSeq);
         worst = Math.max(worst, predictor.lastCorrection);
       }
@@ -179,6 +187,60 @@ describe('interpolation', () => {
     interp.push(0, at(0));
     interp.push(100, []);
     expect(interp.ids()).toEqual([]);
+  });
+});
+
+describe('snapshot deltas', () => {
+  it('rebuilds every snapshot of a busy game, with players joining and leaving', () => {
+    const game = new Game(map);
+    const ids = [game.addPlayer(), game.addPlayer(), game.addPlayer()];
+    const reader = new SnapshotReader();
+    let base: SnapshotMessage | undefined;
+    let fullBytes = 0;
+    let deltaBytes = 0;
+
+    for (let tick = 0; tick < 300; tick++) {
+      ids.forEach((id, i) => game.pushInput(id, tick + 1, i === 2 ? 0 : inputAt(tick + i * 30)));
+      if (tick === 100) ids.push(game.addPlayer());
+      if (tick === 200) game.removePlayer(ids.shift()!);
+      game.update();
+
+      const snapshot = game.snapshotFor(ids[0]!);
+      const full = encode(snapshot);
+      const bytes = base ? encodeSnapshotDelta(snapshot, base) : full;
+      expect(reader.read(bytes)).toEqual(decode(full));
+      if (base) {
+        fullBytes += full.byteLength;
+        deltaBytes += bytes.byteLength;
+      }
+      base = snapshot;
+    }
+    // Player 2 stands still, the others move: the deltas are well under half.
+    expect(deltaBytes / fullBytes).toBeLessThan(0.5);
+  });
+
+  it('sends an idle player as just its id and an empty mask', () => {
+    const game = new Game(map);
+    const id = game.addPlayer();
+    for (let i = 0; i < 60; i++) game.update();
+    const a = game.snapshotFor(id);
+    game.update();
+    expect(encodeSnapshotDelta(game.snapshotFor(id), a).byteLength).toBe(15 + 4);
+  });
+
+  it('refuses a delta against a snapshot it does not have', () => {
+    const game = new Game(map);
+    const id = game.addPlayer();
+    const reader = new SnapshotReader();
+    const first = game.snapshotFor(id);
+    game.update();
+    const second = game.snapshotFor(id);
+    expect(() => reader.read(encodeSnapshotDelta(second, first))).toThrow(DecodeError);
+    reader.read(encode(first));
+    game.update();
+    expect(() => reader.read(encodeSnapshotDelta(game.snapshotFor(id), second))).toThrow(
+      /delta against tick/,
+    );
   });
 });
 

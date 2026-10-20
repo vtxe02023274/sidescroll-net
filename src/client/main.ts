@@ -1,6 +1,6 @@
 import { loadMap, type GameMap, type MapData } from '../shared/map.js';
 import { Button, Physics, TICK_RATE, type PlayerState } from '../shared/physics.js';
-import { decode, encode, Op, type Message } from '../shared/protocol.js';
+import { encode, Op, SnapshotReader, type Message } from '../shared/protocol.js';
 import { Graph } from './graph.js';
 import { Interpolator, Predictor } from './netcode.js';
 import { connectWebSocket, startLocalServer } from './transport.js';
@@ -68,9 +68,10 @@ setInterval(() => {
   bytesThisSecond = 0;
 }, 1000);
 
+const reader = new SnapshotReader();
 transport.onMessage = (bytes) => {
   bytesThisSecond += bytes.byteLength;
-  const msg = decode(bytes);
+  const msg = reader.read(bytes);
   delayed(() => handle(msg));
 };
 transport.onClose = () => {

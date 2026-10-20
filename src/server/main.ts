@@ -4,7 +4,15 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { loadMap, type MapData } from '../shared/map.js';
-import { decode, encode, Op, DecodeError, setSnapshotAck } from '../shared/protocol.js';
+import {
+  decode,
+  DecodeError,
+  encode,
+  encodeSnapshotDelta,
+  Op,
+  setSnapshotAck,
+  type SnapshotMessage,
+} from '../shared/protocol.js';
 import { Game } from './game.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
@@ -66,6 +74,7 @@ wss.on('connection', (ws) => {
   ws.on('close', () => {
     game.removePlayer(id);
     sockets.delete(id);
+    lastSent.delete(id);
   });
 });
 
@@ -74,20 +83,40 @@ const tickMs = 1000 / game.tickRate;
 let next = performance.now();
 const stats = { ticks: 0, busyMs: 0, worstMs: 0, bytesOut: 0 };
 
+// WebSocket delivers in order, so the last snapshot sent to a client is the one
+// it has, and the next one can be sent as the changes from it. DELTA=0 turns it off.
+const DELTA = process.env.DELTA !== '0';
+const lastSent = new Map<number, SnapshotMessage>();
+let lastShared: SnapshotMessage | undefined;
+
+const smaller = (a: Uint8Array, b: Uint8Array) => (a.byteLength < b.byteLength ? a : b);
+
+function send(id: number, ws: WebSocket, bytes: Uint8Array, snapshot: SnapshotMessage) {
+  ws.send(bytes);
+  lastSent.set(id, snapshot);
+  stats.bytesOut += bytes.byteLength;
+}
+
 function broadcast() {
-  // Without a view limit everyone gets the same entity list and only the ack
-  // differs, so encode once and patch the ack per client.
-  const shared = game.seesWholeMap ? encode(game.snapshotFor(0)) : undefined;
-  for (const [id, ws] of sockets) {
-    let bytes: Uint8Array;
-    if (shared) {
-      bytes = shared.slice();
+  if (game.seesWholeMap) {
+    // Everyone gets the same entity list and only the ack differs, so encode
+    // once (and once more as a delta) and patch the ack per client.
+    const snapshot = game.snapshotFor(0);
+    const full = encode(snapshot);
+    const delta =
+      DELTA && lastShared ? smaller(encodeSnapshotDelta(snapshot, lastShared), full) : full;
+    for (const [id, ws] of sockets) {
+      const bytes = (lastSent.get(id) === lastShared ? delta : full).slice();
       setSnapshotAck(bytes, game.ackSeq(id));
-    } else {
-      bytes = encode(game.snapshotFor(id));
+      send(id, ws, bytes, snapshot);
     }
-    ws.send(bytes);
-    stats.bytesOut += bytes.byteLength;
+    lastShared = snapshot;
+    return;
+  }
+  for (const [id, ws] of sockets) {
+    const snapshot = game.snapshotFor(id);
+    const base = lastSent.get(id);
+    send(id, ws, DELTA && base ? encodeSnapshotDelta(snapshot, base) : encode(snapshot), snapshot);
   }
 }
 

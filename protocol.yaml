@@ -84,3 +84,25 @@ packets:
       - name: entities
         type: Entity[]
         length: u16
+
+  - name: SnapshotDelta
+    opcode: 0x04
+    direction: s2c
+    doc: >-
+      Snapshot sent as the changes from an earlier one, usually the previous one sent on the
+      connection. Followed by `count` entities, each a u16 id, a u16 mask and then only the
+      Entity fields after the id whose mask bit is set, bit 0 for x up to bit 11 for
+      rope_cooldown, in Entity order. Every entity of the snapshot is listed, an entity that
+      was not in the base has every bit set. The entity list is left out here because its
+      fields depend on the mask.
+    fields:
+      - name: tick
+        type: u32
+      - name: ack_seq
+        type: u32
+        doc: Last input sequence the server applied for this client.
+      - name: base_tick
+        type: u32
+        doc: Tick of the snapshot the changes are from.
+      - name: count
+        type: u16

@@ -97,12 +97,16 @@ By default every snapshot carries every player and bandwidth grows with n². Set
 MAP=maps/long.json VIEW=600x450 npm start
 ```
 
-| 6000 px map, 200 bots | tick avg | bandwidth  |
-| --------------------- | -------- | ---------- |
-| no view limit         | 2.5 ms   | 13.8 MiB/s |
-| `VIEW=600x450`        | 3.1 ms   | 6.1 MiB/s  |
+Snapshots go out as deltas by default, only the fields that changed since the previous snapshot (`DELTA=0` turns it off, see [docs/design.md](docs/design.md)).
 
-With a view limit each client gets its own encoded snapshot, so ticks get a bit heavier. Without one the snapshot is encoded once and only the ack is patched per client.
+| 6000 px map, 200 bots, 58 seconds | tick avg | bandwidth  |
+| --------------------------------- | -------- | ---------- |
+| no view limit, `DELTA=0`          | 2.0 ms   | 16.6 MiB/s |
+| no view limit                     | 1.8 ms   | 9.7 MiB/s  |
+| `VIEW=600x450`, `DELTA=0`         | 2.8 ms   | 16.2 MiB/s |
+| `VIEW=600x450`                    | 4.7 ms   | 9.2 MiB/s  |
+
+Without a view limit the full snapshot and the delta are each encoded once and only the ack is patched per client. With one every client gets its own, so ticks get heavier.
 
 ## Development
 

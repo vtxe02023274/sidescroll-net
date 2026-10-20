@@ -2,7 +2,7 @@ import { parseArgs } from 'node:util';
 import { WebSocket } from 'ws';
 import { botInput } from '../shared/bot.js';
 import { TICK_RATE } from '../shared/physics.js';
-import { decode, encode, Op } from '../shared/protocol.js';
+import { encode, Op, SnapshotReader } from '../shared/protocol.js';
 
 const { values } = parseArgs({
   options: {
@@ -33,9 +33,10 @@ for (let i = 0; i < count; i++) {
       ws.send(encode({ op: Op.Input, seq, buttons: botInput(seq, i), viewTick: lastTick }));
     }, 1000 / TICK_RATE);
   });
+  const reader = new SnapshotReader();
   ws.on('message', (data: Buffer) => {
     bytesIn += data.byteLength;
-    const msg = decode(new Uint8Array(data));
+    const msg = reader.read(new Uint8Array(data));
     if (msg.op === Op.Snapshot) {
       snapshots++;
       lastTick = msg.tick;

@@ -2,7 +2,13 @@ import { Game } from '../server/game.js';
 import { botInput } from '../shared/bot.js';
 import type { GameMap } from '../shared/map.js';
 import { TICK_RATE } from '../shared/physics.js';
-import { decode, encode, Op } from '../shared/protocol.js';
+import {
+  decode,
+  encode,
+  encodeSnapshotDelta,
+  Op,
+  type SnapshotMessage,
+} from '../shared/protocol.js';
 
 export interface Transport {
   send(bytes: Uint8Array): void;
@@ -35,6 +41,7 @@ export function startLocalServer(map: GameMap, bots: number): Transport {
   const me = game.addPlayer();
   const botIds = Array.from({ length: bots }, () => game.addPlayer());
   let botSeq = 0;
+  let last: SnapshotMessage | undefined;
 
   const t: Transport = {
     send(bytes) {
@@ -50,7 +57,11 @@ export function startLocalServer(map: GameMap, bots: number): Transport {
     botSeq++;
     botIds.forEach((id, i) => game.pushInput(id, botSeq, botInput(botSeq, i * 40 + 5)));
     game.update();
-    if (game.tick % 2 === 0) t.onMessage(encode(game.snapshotFor(me)));
+    if (game.tick % 2 === 0) {
+      const snapshot = game.snapshotFor(me);
+      t.onMessage(last ? encodeSnapshotDelta(snapshot, last) : encode(snapshot));
+      last = snapshot;
+    }
   }, 1000 / TICK_RATE);
 
   return t;

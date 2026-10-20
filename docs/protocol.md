@@ -9,11 +9,12 @@ Strings are UTF-8; their length prefix counts bytes, not characters.
 
 ## Packets
 
-| Opcode | Packet                | Direction       | Body size |
-| ------ | --------------------- | --------------- | --------- |
-| `0x01` | [Input](#input)       | client → server | 9         |
-| `0x02` | [Welcome](#welcome)   | server → client | 3         |
-| `0x03` | [Snapshot](#snapshot) | server → client | 10+       |
+| Opcode | Packet                          | Direction       | Body size |
+| ------ | ------------------------------- | --------------- | --------- |
+| `0x01` | [Input](#input)                 | client → server | 9         |
+| `0x02` | [Welcome](#welcome)             | server → client | 3         |
+| `0x03` | [Snapshot](#snapshot)           | server → client | 10+       |
+| `0x04` | [SnapshotDelta](#snapshotdelta) | server → client | 14+       |
 
 ### Input
 
@@ -49,6 +50,19 @@ Sent every other tick.
 | `tick`     | u32                             | 4            |                                                         |
 | `ack_seq`  | u32                             | 4            | Last input sequence the server applied for this client. |
 | `entities` | [Entity](#entity)[] (u16 count) | 2 + 29n      |                                                         |
+
+### SnapshotDelta
+
+Opcode `0x04` · server → client
+
+Snapshot sent as the changes from an earlier one, usually the previous one sent on the connection. Followed by `count` entities, each a u16 id, a u16 mask and then only the Entity fields after the id whose mask bit is set, bit 0 for x up to bit 11 for rope_cooldown, in Entity order. Every entity of the snapshot is listed, an entity that was not in the base has every bit set. The entity list is left out here because its fields depend on the mask.
+
+| Field       | Type | Size (bytes) | Description                                             |
+| ----------- | ---- | ------------ | ------------------------------------------------------- |
+| `tick`      | u32  | 4            |                                                         |
+| `ack_seq`   | u32  | 4            | Last input sequence the server applied for this client. |
+| `base_tick` | u32  | 4            | Tick of the snapshot the changes are from.              |
+| `count`     | u16  | 2            |                                                         |
 
 ## Structs
 
