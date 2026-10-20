@@ -68,6 +68,7 @@ packets:
     fields:
       - name: player_id
         type: u16
+        doc: 1 to 65535, never 0. Ids of players that left are reused.
       - name: tick_rate
         type: u8
 

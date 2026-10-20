@@ -56,6 +56,10 @@ const sockets = new Map<number, WebSocket>();
 const wss = new WebSocketServer({ server: http, maxPayload: 64 });
 
 wss.on('connection', (ws) => {
+  if (game.full) {
+    ws.close(1013, 'server full');
+    return;
+  }
   const id = game.addPlayer();
   sockets.set(id, ws);
   ws.send(encode({ op: Op.Welcome, playerId: id, tickRate: game.tickRate }));

@@ -118,6 +118,25 @@ describe('game', () => {
     expect(game.snapshotFor(id).ackSeq).toBeGreaterThanOrEqual(7);
   });
 
+  it('hands out ids that fit in a u16 and are not in use', () => {
+    const game = new Game(map);
+    const first = game.addPlayer();
+    for (let i = 1; i < 65535; i++) game.addPlayer();
+    expect(game.full).toBe(true);
+    expect(() => game.addPlayer()).toThrow(/full/);
+
+    // Free a couple of ids: they are reused, player 1 keeps its own.
+    game.removePlayer(70);
+    game.removePlayer(65535);
+    const reused = [game.addPlayer(), game.addPlayer()].sort((a, b) => a - b);
+    expect(reused).toEqual([70, 65535]);
+    expect(first).toBe(1);
+    const ids = game.snapshotFor(first).entities.map((e) => e.id);
+    expect(new Set(ids).size).toBe(65535);
+    expect(Math.min(...ids)).toBe(1);
+    expect(Math.max(...ids)).toBe(65535);
+  });
+
   it('includes every player in snapshots', () => {
     const game = new Game(map);
     const a = game.addPlayer();
