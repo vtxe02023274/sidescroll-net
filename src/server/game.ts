@@ -16,6 +16,15 @@ interface Player {
   budget: number;
 }
 
+export interface GameOptions {
+  /**
+   * Half size of the area around a player that its snapshots cover. Players
+   * outside it are left out, which keeps bandwidth linear instead of
+   * quadratic on big maps. Defaults to the whole map.
+   */
+  view?: { x: number; y: number };
+}
+
 /**
  * Authoritative game state. It knows nothing about sockets so it can be
  * driven by tests one tick at a time.
@@ -26,7 +35,14 @@ export class Game {
   private readonly players = new Map<number, Player>();
   private nextId = 1;
 
-  constructor(readonly map: GameMap) {}
+  private readonly view: { x: number; y: number };
+
+  constructor(
+    readonly map: GameMap,
+    options: GameOptions = {},
+  ) {
+    this.view = options.view ?? { x: Infinity, y: Infinity };
+  }
 
   addPlayer(): number {
     const id = this.nextId++;
@@ -84,8 +100,25 @@ export class Game {
     return this.players.get(id)?.ackSeq ?? 0;
   }
 
+  /** Snapshot for one client: itself plus every player inside its view. */
   snapshotFor(id: number): SnapshotMessage {
-    const entities = [...this.players.values()].map((p) => ({ id: p.id, state: p.state }));
+    const self = this.players.get(id)?.state;
+    const entities = [];
+    for (const p of this.players.values()) {
+      if (
+        self &&
+        p.id !== id &&
+        (Math.abs(p.state.x - self.x) > this.view.x || Math.abs(p.state.y - self.y) > this.view.y)
+      ) {
+        continue;
+      }
+      entities.push({ id: p.id, state: p.state });
+    }
     return { op: 3, tick: this.tick, ackSeq: this.ackSeq(id), entities };
+  }
+
+  /** True when every snapshot carries every player, so one encoding fits all clients. */
+  get seesWholeMap(): boolean {
+    return this.view.x === Infinity && this.view.y === Infinity;
   }
 }

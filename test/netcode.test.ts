@@ -170,3 +170,21 @@ describe('setSnapshotAck', () => {
     expect(decode(bytes)).toEqual({ ...game.snapshotFor(a), ackSeq: 77 });
   });
 });
+
+describe('view', () => {
+  it('leaves out players beyond the view but always includes yourself', () => {
+    const game = new Game(map, { view: { x: 500, y: 300 } });
+    const a = game.addPlayer();
+    const b = game.addPlayer();
+    const c = game.addPlayer();
+    for (let seq = 1; seq <= 200; seq++) {
+      game.pushInput(b, seq, Button.Right);
+      game.update();
+    }
+    const far = game.state(b)!.x - game.state(a)!.x;
+    expect(far).toBeGreaterThan(500);
+    expect(game.snapshotFor(a).entities.map((e) => e.id)).toEqual([a, c]);
+    expect(game.snapshotFor(b).entities.map((e) => e.id)).toEqual([b]);
+    expect(game.seesWholeMap).toBe(false);
+  });
+});

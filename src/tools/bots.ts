@@ -19,8 +19,12 @@ let snapshots = 0;
 let bytesIn = 0;
 let failed = 0;
 
-/** Wanders left and right and jumps now and then, like a bored player. */
+/**
+ * Walks right for a while so the bots spread over the map, then wanders left
+ * and right and jumps now and then, like a bored player.
+ */
 function botInput(tick: number, seed: number): number {
+  if (tick < seed * 3) return Button.Right;
   const phase = Math.floor((tick + seed * 37) / 60) % 3;
   let b = phase === 0 ? Button.Right : phase === 1 ? Button.Left : 0;
   if ((tick + seed) % 50 < 3) b |= Button.Jump;

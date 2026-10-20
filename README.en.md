@@ -81,7 +81,20 @@ npm start
 npm run bots -- -n 200 -t 30   # in another terminal
 ```
 
-The server prints player count, tick time and bandwidth every 10 seconds. With 200 bots on one map a tick takes about 2 ms on average, but every snapshot carries every player, so bandwidth grows with n² and sits around 12 MiB/s.
+The server prints player count, tick time and bandwidth every 10 seconds. Bots walk right for a while before wandering, so they spread over the map.
+
+By default every snapshot carries every player and bandwidth grows with n². Set `VIEW=WxH` (half size in pixels) to send only nearby players:
+
+```sh
+MAP=maps/long.json VIEW=600x450 npm start
+```
+
+| 6000 px map, 200 bots | tick avg | bandwidth  |
+| --------------------- | -------- | ---------- |
+| no view limit         | 2.5 ms   | 13.8 MiB/s |
+| `VIEW=600x450`        | 3.1 ms   | 6.1 MiB/s  |
+
+With a view limit each client gets its own encoded snapshot, so ticks get a bit heavier. Without one the snapshot is encoded once and only the ack is patched per client.
 
 ## Development
 

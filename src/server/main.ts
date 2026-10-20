@@ -15,7 +15,8 @@ const root = fileURLToPath(new URL('../..', import.meta.url));
 const publicDir = join(root, 'public');
 const mapFile = process.env.MAP ?? join(root, 'maps', 'field.json');
 const mapData = JSON.parse(await readFile(mapFile, 'utf8')) as MapData;
-const game = new Game(loadMap(mapData));
+const view = process.env.VIEW ? process.env.VIEW.split('x').map(Number) : undefined;
+const game = new Game(loadMap(mapData), view ? { view: { x: view[0]!, y: view[1]! } } : {});
 
 const contentTypes: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
@@ -74,12 +75,17 @@ let next = performance.now();
 const stats = { ticks: 0, busyMs: 0, worstMs: 0, bytesOut: 0 };
 
 function broadcast() {
-  // Everyone gets the same entity list, only the ack differs. Encode once
-  // and patch the ack per client instead of encoding a snapshot per player.
-  const shared = encode(game.snapshotFor(0));
+  // Without a view limit everyone gets the same entity list and only the ack
+  // differs, so encode once and patch the ack per client.
+  const shared = game.seesWholeMap ? encode(game.snapshotFor(0)) : undefined;
   for (const [id, ws] of sockets) {
-    const bytes = shared.slice();
-    setSnapshotAck(bytes, game.ackSeq(id));
+    let bytes: Uint8Array;
+    if (shared) {
+      bytes = shared.slice();
+      setSnapshotAck(bytes, game.ackSeq(id));
+    } else {
+      bytes = encode(game.snapshotFor(id));
+    }
     ws.send(bytes);
     stats.bytesOut += bytes.byteLength;
   }
