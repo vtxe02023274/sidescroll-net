@@ -16,6 +16,11 @@ import type { PlayerState } from './physics.js';
  *   field i (in the entity order above, after id) differs from the snapshot
  *   at baseTick, and only those fields follow. Entities that were not in the
  *   base have every bit set.
+ *
+ * Decoders are strict so that an encoder bug or another implementation
+ * drifting from this format shows up at once: a message must end exactly
+ * where its fields do, an entity id appears at most once per snapshot, and
+ * mask bits above the last field are refused.
  */
 export const Op = {
   Input: 1,
@@ -169,12 +174,18 @@ export class SnapshotReader {
     const before = new Map(this.last.entities.map((e) => [e.id, e.state]));
     const count = view.getUint16(13, true);
     const entities: EntitySnapshot[] = [];
+    const seen = new Set<number>();
     let o = 15;
     for (let n = 0; n < count; n++) {
       need(o + 4);
       const id = view.getUint16(o, true);
       const mask = view.getUint16(o + 2, true);
       o += 4;
+      if (seen.has(id)) throw new DecodeError(`entity ${id} twice in one snapshot`);
+      seen.add(id);
+      if (mask & ~ALL_FIELDS) {
+        throw new DecodeError(`entity ${id}: unknown mask bits 0x${mask.toString(16)}`);
+      }
       const old = before.get(id);
       if (!old && mask !== ALL_FIELDS) throw new DecodeError(`entity ${id} is not in the base`);
       const state = { ...old } as PlayerState;
@@ -193,6 +204,7 @@ export class SnapshotReader {
       });
       entities.push({ id, state });
     }
+    noTrailing(bytes, o);
     const msg: SnapshotMessage = {
       op: Op.Snapshot,
       tick: view.getUint32(1, true),
@@ -258,6 +270,12 @@ export function setSnapshotAck(bytes: Uint8Array, ackSeq: number): void {
 
 export class DecodeError extends Error {}
 
+function noTrailing(bytes: Uint8Array, end: number): void {
+  if (bytes.byteLength > end) {
+    throw new DecodeError(`${bytes.byteLength - end} trailing bytes after the message`);
+  }
+}
+
 export function decode(bytes: Uint8Array): Message {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const need = (n: number) => {
@@ -270,6 +288,7 @@ export function decode(bytes: Uint8Array): Message {
   switch (op) {
     case Op.Input:
       need(10);
+      noTrailing(bytes, 10);
       return {
         op,
         seq: view.getUint32(1, true),
@@ -278,17 +297,23 @@ export function decode(bytes: Uint8Array): Message {
       };
     case Op.Welcome:
       need(4);
+      noTrailing(bytes, 4);
       return { op, playerId: view.getUint16(1, true), tickRate: view.getUint8(3) };
     case Op.Snapshot: {
       need(11);
       const count = view.getUint16(9, true);
       need(11 + count * ENTITY_SIZE);
+      noTrailing(bytes, 11 + count * ENTITY_SIZE);
       const entities: EntitySnapshot[] = [];
+      const seen = new Set<number>();
       let o = 11;
       for (let i = 0; i < count; i++) {
+        const id = view.getUint16(o, true);
+        if (seen.has(id)) throw new DecodeError(`entity ${id} twice in one snapshot`);
+        seen.add(id);
         const flags = view.getUint8(o + 20);
         entities.push({
-          id: view.getUint16(o, true),
+          id,
           state: {
             x: view.getFloat32(o + 2, true),
             y: view.getFloat32(o + 6, true),

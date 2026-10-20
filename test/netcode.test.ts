@@ -84,6 +84,27 @@ describe('protocol', () => {
     expect(() => decode(new Uint8Array([]))).toThrow(DecodeError);
     expect(() => decode(new Uint8Array([200]))).toThrow(/unknown opcode/);
   });
+
+  it('rejects trailing bytes and duplicate entities', () => {
+    const input = encode({ op: Op.Input, seq: 1, buttons: 0, viewTick: 0 });
+    const welcome = encode({ op: Op.Welcome, playerId: 1, tickRate: 30 });
+    const state = spawnPlayer(map);
+    const snapshot = encode({ op: Op.Snapshot, tick: 1, ackSeq: 0, entities: [{ id: 1, state }] });
+    for (const bytes of [input, welcome, snapshot]) {
+      expect(() => decode(withJunk(bytes, 1))).toThrow(/trailing bytes|expected/);
+      expect(() => decode(withJunk(bytes, 50))).toThrow(DecodeError);
+    }
+    const twice = encode({
+      op: Op.Snapshot,
+      tick: 1,
+      ackSeq: 0,
+      entities: [
+        { id: 1, state },
+        { id: 1, state },
+      ],
+    });
+    expect(() => decode(twice)).toThrow(/entity 1 twice/);
+  });
 });
 
 describe('game', () => {
@@ -228,6 +249,42 @@ describe('snapshot deltas', () => {
     expect(encodeSnapshotDelta(game.snapshotFor(id), a).byteLength).toBe(15 + 4);
   });
 
+  it('rejects unknown mask bits, duplicate entities and trailing bytes', () => {
+    const state = spawnPlayer(map);
+    const base: SnapshotMessage = {
+      op: Op.Snapshot,
+      tick: 1,
+      ackSeq: 0,
+      entities: [{ id: 1, state }],
+    };
+    const next = { ...base, tick: 2 };
+    const reader = () => {
+      const r = new SnapshotReader();
+      r.read(encode(base));
+      return r;
+    };
+
+    const good = encodeSnapshotDelta(next, base);
+    expect(reader().read(good)).toEqual(next);
+    expect(() => reader().read(withJunk(good, 40))).toThrow(/trailing bytes/);
+
+    for (const bit of [12, 13, 14, 15]) {
+      const bad = good.slice();
+      new DataView(bad.buffer).setUint16(17, 1 << bit, true);
+      expect(() => reader().read(bad)).toThrow(/unknown mask bits/);
+    }
+
+    const thrice = {
+      ...next,
+      entities: [
+        { id: 1, state },
+        { id: 1, state },
+        { id: 1, state },
+      ],
+    };
+    expect(() => reader().read(encodeSnapshotDelta(thrice, base))).toThrow(/entity 1 twice/);
+  });
+
   it('refuses a delta against a snapshot it does not have', () => {
     const game = new Game(map);
     const id = game.addPlayer();
@@ -339,6 +396,13 @@ describe('lag compensation', () => {
     expect(s.attackTicks).toBe(0);
   });
 });
+
+function withJunk(bytes: Uint8Array, n: number): Uint8Array {
+  const out = new Uint8Array(bytes.length + n);
+  out.set(bytes);
+  out.fill(7, bytes.length);
+  return out;
+}
 
 function run(s: PlayerState, buttons: number, ticks: number): PlayerState {
   for (let i = 0; i < ticks; i++) s = step(map, s, buttons);
