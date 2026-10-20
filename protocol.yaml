@@ -1,0 +1,71 @@
+# Wire format of sidescroll-net, same as src/shared/protocol.ts.
+# docs/protocol.md is generated from this file with pktspec: https://github.com/vtxe02023274/pktspec
+name: sidescroll-net
+version: 1
+endian: little
+opcode: u8
+doc: Clients send buttons, the server answers with snapshots of every player in view.
+
+structs:
+  Entity:
+    doc: One player as of the snapshot tick.
+    fields:
+      - name: id
+        type: u16
+      - name: x
+        type: f32
+      - name: y
+        type: f32
+        doc: Feet position, y grows downward.
+      - name: vx
+        type: f32
+      - name: vy
+        type: f32
+      - name: foothold
+        type: u16
+        doc: Foothold the player stands on, 0 when airborne.
+      - name: flags
+        type: u8
+        doc: Bit 0 facing left, bit 1 jump held.
+      - name: drop_foothold
+        type: u16
+        doc: Foothold being dropped through.
+      - name: drop_ticks
+        type: u8
+        doc: Ticks left before the dropped foothold can be landed on again.
+
+packets:
+  - name: Input
+    opcode: 0x01
+    direction: c2s
+    doc: Buttons for one client tick. Every input moves the player exactly one step.
+    fields:
+      - name: seq
+        type: u32
+      - name: buttons
+        type: u8
+        doc: Bit 0 left, bit 1 right, bit 2 jump, bit 3 down.
+
+  - name: Welcome
+    opcode: 0x02
+    direction: s2c
+    doc: First message after connecting.
+    fields:
+      - name: player_id
+        type: u16
+      - name: tick_rate
+        type: u8
+
+  - name: Snapshot
+    opcode: 0x03
+    direction: s2c
+    doc: Sent every other tick.
+    fields:
+      - name: tick
+        type: u32
+      - name: ack_seq
+        type: u32
+        doc: Last input sequence the server applied for this client.
+      - name: entities
+        type: Entity[]
+        length: u16
