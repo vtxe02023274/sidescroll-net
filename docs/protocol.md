@@ -2,7 +2,7 @@
 
 Version 1 · little-endian · u8 opcode
 
-Clients send buttons, the server answers with snapshots of every player in view.
+Clients send buttons, the server answers with snapshots of every player in view. Receivers reject a message that is shorter or longer than its fields (Input is exactly 10 bytes with the opcode, Welcome 4) and a snapshot that lists the same entity id twice.
 
 Every packet starts with its opcode, followed by the fields below in order.
 Strings are UTF-8; their length prefix counts bytes, not characters.
@@ -55,7 +55,7 @@ Sent every other tick.
 
 Opcode `0x04` · server → client
 
-Snapshot sent as the changes from an earlier one, usually the previous one sent on the connection. Followed by `count` entities, each a u16 id, a u16 mask and then only the Entity fields after the id whose mask bit is set, bit 0 for x up to bit 11 for rope_cooldown, in Entity order. Every entity of the snapshot is listed, an entity that was not in the base has every bit set. The entity list is left out here because its fields depend on the mask.
+Snapshot sent as the changes from an earlier one, usually the previous one sent on the connection. Followed by `count` entities, each a u16 id, a u16 mask and then only the Entity fields after the id whose mask bit is set, bit 0 for x up to bit 11 for rope_cooldown, in Entity order. Bits 12 to 15 must be 0. Every entity of the snapshot is listed once, an entity that was not in the base has every bit set, and the message ends right after the last entity. The entity list is left out here because its fields depend on the mask.
 
 | Field       | Type | Size (bytes) | Description                                             |
 | ----------- | ---- | ------------ | ------------------------------------------------------- |
