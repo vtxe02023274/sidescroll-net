@@ -44,6 +44,40 @@ describe('loadMap', () => {
       loadMap({ ...data, footholds: [data.footholds[0]!, { ...data.footholds[1]!, id: 1 }] }),
     ).toThrow(/duplicate/);
   });
+
+  it('rejects ids that do not fit the wire or clash with 0', () => {
+    const fh = data.footholds[0]!;
+    for (const id of [0, -1, 1.5, 65536, 70000, NaN]) {
+      expect(() => loadMap({ ...data, footholds: [{ ...fh, id }] })).toThrow(/id must be/);
+      expect(() => loadMap({ ...data, ropes: [{ id, x: 0, y1: 0, y2: 5 }] })).toThrow(/id must be/);
+    }
+    expect(loadMap({ ...data, footholds: [{ ...fh, id: 65535 }] }).footholds.has(65535)).toBe(true);
+  });
+
+  it('rejects missing or non numeric coordinates', () => {
+    const fh = data.footholds[0]!;
+    const bad = [
+      { ...fh, y1: '500' },
+      { ...fh, y2: undefined },
+      { ...fh, x1: Infinity },
+    ] as unknown as MapData['footholds'];
+    for (const f of bad) {
+      expect(() => loadMap({ ...data, footholds: [f] })).toThrow(/must be a finite number/);
+    }
+    expect(() => loadMap({ ...data, ropes: [{ id: 1, x: NaN, y1: 0, y2: 5 }] })).toThrow(
+      /must be a finite number/,
+    );
+    expect(() => loadMap({ ...data, bottom: '800' as unknown as number })).toThrow(
+      /bottom must be a finite number/,
+    );
+  });
+
+  it('rejects inverted bounds and a spawn outside them', () => {
+    expect(() => loadMap({ ...data, left: 1000, right: 0 })).toThrow(/left must be less/);
+    expect(() => loadMap({ ...data, spawn: { x: 100, y: 900 } })).toThrow(/spawn/);
+    expect(() => loadMap({ ...data, spawn: { x: -5, y: 500 } })).toThrow(/spawn/);
+    expect(() => loadMap({ ...data, spawn: { x: 1001, y: 500 } })).toThrow(/spawn/);
+  });
 });
 
 describe('step', () => {
@@ -188,6 +222,8 @@ describe('ropes', () => {
 
   it('rejects broken ropes', () => {
     expect(() => loadMap({ ...data, ropes: [{ id: 1, x: 0, y1: 10, y2: 5 }] })).toThrow(/y2 must/);
-    expect(() => loadMap({ ...data, ropes: [{ id: 0, x: 0, y1: 0, y2: 5 }] })).toThrow(/unique/);
+    expect(() => loadMap({ ...data, ropes: [{ id: 0, x: 0, y1: 0, y2: 5 }] })).toThrow(
+      /id must be/,
+    );
   });
 });
