@@ -48,7 +48,7 @@ Open http://localhost:8080 and a second tab to see another player. The controls 
 
 **The server only trusts input.** Clients send buttons, never positions. Each input moves the player one step, the queue holds at most 8 and on average one is spent per tick, so flooding inputs does not make anyone faster.
 
-**Small snapshots.** Sent every other tick, 24 bytes per player, plus the last input sequence the server applied for that client.
+**Small snapshots.** Sent every other tick, with the last input sequence the server applied for that client. A full snapshot is 29 bytes per player, but usually only the changes from the previous one are sent: an idle player takes 4 bytes, and a walking one usually 4 more for x.
 
 **Lag compensation.** An attacker sees other players in the past, by its latency plus the interpolation delay, so every input carries the server tick the client was showing others at. The server keeps the last 15 ticks of positions and rewinds the targets to that tick before checking the swing. It never rewinds more than 500 ms, so a very laggy client cannot hit positions from too long ago.
 
