@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { loadMap, type MapData } from '../src/shared/map.js';
-import { Button, spawnPlayer, step, type PlayerState } from '../src/shared/physics.js';
+import { applyHit, Button, spawnPlayer, step, type PlayerState } from '../src/shared/physics.js';
 
 const data: MapData = {
   name: 'test',
@@ -188,6 +188,19 @@ describe('ropes', () => {
     expect(s.rope).toBe(0);
     expect(s.foothold).toBe(5);
     expect(s.y).toBe(300);
+  });
+
+  it('knocks a player off the rope when hit and keeps them off while hurt', () => {
+    let s = at(395, 500, 1);
+    s = go(s, Button.Up, 5);
+    expect(s.rope).toBe(1);
+    s = applyHit(s, 1);
+    s = step(roped, s, Button.Up);
+    expect(s.rope).toBe(0);
+    expect(s.vx).toBeGreaterThan(0);
+    expect(s.vy).toBeLessThan(0);
+    s = go(s, Button.Up, 5);
+    expect(s.rope).toBe(0);
   });
 
   it('climbs down from the top with down and lets go at the bottom', () => {

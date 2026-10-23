@@ -86,6 +86,8 @@ export function applyHit(target: PlayerState, attackerFacing: 1 | -1): PlayerSta
     vx: Math.fround(attackerFacing * Physics.knockbackX),
     vy: Math.fround(-Physics.knockbackY),
     foothold: 0,
+    rope: 0,
+    ropeCooldown: Physics.ropeCooldown,
     hurtTicks: Physics.hurtTicks,
   };
 }
