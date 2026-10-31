@@ -13,6 +13,7 @@ import {
   setSnapshotAck,
   type SnapshotMessage,
 } from '../shared/protocol.js';
+import { backpressure } from './backpressure.js';
 import { Game } from './game.js';
 import { resolveStatic } from './static.js';
 
@@ -96,6 +97,11 @@ let lastShared: SnapshotMessage | undefined;
 const smaller = (a: Uint8Array, b: Uint8Array) => (a.byteLength < b.byteLength ? a : b);
 
 function send(id: number, ws: WebSocket, bytes: Uint8Array, snapshot: SnapshotMessage) {
+  // A client that is not reading would otherwise make the server queue snapshots without limit.
+  // Skipping leaves lastSent alone, so the next delta is still based on what the client got.
+  const pressure = backpressure(ws.bufferedAmount);
+  if (pressure === 'drop') ws.terminate();
+  if (pressure !== 'send') return;
   ws.send(bytes);
   lastSent.set(id, snapshot);
   stats.bytesOut += bytes.byteLength;
