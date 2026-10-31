@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { loadMap, type MapData } from '../shared/map.js';
@@ -14,6 +14,7 @@ import {
   type SnapshotMessage,
 } from '../shared/protocol.js';
 import { Game } from './game.js';
+import { resolveStatic } from './static.js';
 
 const PORT = Number(process.env.PORT ?? 8080);
 /** Snapshots go out every other tick; clients interpolate the gaps. */
@@ -34,17 +35,16 @@ const contentTypes: Record<string, string> = {
 };
 
 const http = createServer(async (req, res) => {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const path = url.pathname === '/' ? '/index.html' : url.pathname;
-  const file = normalize(join(publicDir, path));
-  if (!file.startsWith(publicDir)) {
-    res.writeHead(403).end();
+  const target = resolveStatic(publicDir, req.url);
+  if (target.status !== 200) {
+    res.writeHead(target.status).end();
     return;
   }
   try {
-    const body = path === '/map.json' ? JSON.stringify(mapData) : await readFile(file);
+    const body =
+      target.path === '/map.json' ? JSON.stringify(mapData) : await readFile(target.file);
     res.writeHead(200, {
-      'content-type': contentTypes[extname(path)] ?? 'application/octet-stream',
+      'content-type': contentTypes[extname(target.path)] ?? 'application/octet-stream',
     });
     res.end(body);
   } catch {
